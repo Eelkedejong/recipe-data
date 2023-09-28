@@ -9,3 +9,38 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+model User {
+  id            String         @id @default(uuid())
+  createdAt     DateTime       @default(now())
+  username      String         @unique
+  password      String
+  recipes       Recipe[]
+  shoppinglists ShoppingList[]
+}
+
+model Recipe {
+  id          Int      @id @default(autoincrement())
+  createdAt   DateTime @default(now())
+  name        String
+  description String?
+  persons     Int
+  carb        String
+  time        String
+  ingredients Json
+  belongsToId String
+  belongsTo   User     @relation(fields: [belongsToId], references: [id])
+
+  @@unique([id, belongsToId])
+}
+
+model ShoppingList {
+  id          Int      @id @default(autoincrement())
+  name        String
+  createdAt   DateTime @default(now())
+  recipeList  Json
+  belongsToId String
+  belongsTo   User     @relation(fields: [belongsToId], references: [id])
+
+  @@unique([id, belongsToId])
+}
