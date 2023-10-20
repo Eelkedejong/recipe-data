@@ -1,11 +1,14 @@
 import express from 'express'
 import router from './router'
+import cors from 'cors'
 import morgan from 'morgan'
 import { protect } from './modules/auth'
 import { createNewUser, signIn } from './handlers/user';
 
 const app = express();
 
+// Enable cors
+app.use(cors()) 
 // Use Morgan for logging
 app.use(morgan('dev'))
 // Use express.json so users can send json from the client.

@@ -17,7 +17,7 @@ router.post('/recipe',
   body('persons').isInt(),
   body('carb').isString(),
   body('time').isString(),
-  body('ingredients').isString(),
+  body('ingredients').optional(),
   handleInputErrors, 
   createRecipe
 )
