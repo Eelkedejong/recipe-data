@@ -3,7 +3,7 @@ import router from './router'
 import cors from 'cors'
 import morgan from 'morgan'
 import { protect } from './modules/auth'
-import { createNewUser, signIn } from './handlers/user';
+import { createNewUser, signIn, passwordResetRequest, updatePassword } from './handlers/user';
 
 const app = express();
 
@@ -30,5 +30,7 @@ app.use('/api', protect, router)
 // Unlike above router, these are not protected (as the user has no token yet)
 app.post('/user', createNewUser)
 app.post('/signin', signIn)
+app.post('/forgot-password', passwordResetRequest)
+app.post('/password-reset/:id', updatePassword)
 
 export default app

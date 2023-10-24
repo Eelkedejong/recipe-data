@@ -24,6 +24,20 @@ export const createJWT = (user) => {
   return token;
 };
 
+// Create a jason web token with an expiration date.
+export const createJWTWithExpiration = (user) => {
+  const token = jwt.sign(
+    { 
+      id: user.id
+    },
+    process.env.JWT_PW_RESET,
+    { 
+      expiresIn: '12h' 
+    }
+  );
+  return token;
+}
+
 // The protect function that sits before each request.
 export const protect = (req, res, next) => {
   // Get the bearer token from the request header
