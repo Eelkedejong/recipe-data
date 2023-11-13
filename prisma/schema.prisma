@@ -25,10 +25,14 @@ model Recipe {
   createdAt   DateTime @default(now())
   name        String
   description String?
+  image       String?
   persons     Int
-  carb        String
-  time        String
+  tags        String[]
+  time        Int?
+  difficulty  String?
+  type        String?
   ingredients Json
+  steps       String[]
   belongsToId String
   belongsTo   User     @relation(fields: [belongsToId], references: [id])
 

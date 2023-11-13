@@ -3,7 +3,8 @@ import router from './router'
 import cors from 'cors'
 import morgan from 'morgan'
 import { protect } from './modules/auth'
-import { createNewUser, signIn, passwordResetRequest, updatePassword } from './handlers/user';
+import { createNewUser, signIn } from './handlers/user';
+import { passwordResetRequest, updatePassword } from './handlers/password-reset';
 
 const app = express();
 

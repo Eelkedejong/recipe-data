@@ -70,7 +70,7 @@ export const protect = (req, res, next) => {
   } catch (e) {
     console.error(e);
     res.status(401);
-    res.send("Wrong token");
+    res.send("no valid token");
     return;
   }
 }
