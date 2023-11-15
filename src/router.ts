@@ -1,8 +1,8 @@
 import { Router } from 'express'
 import { body, oneOf, validationResult } from "express-validator";
 import { handleInputErrors } from './modules/middleware'
-import { getRecipes, getRecipe, updateRecipe, createRecipe, deleteRecipe, getRecipeTypes } from './handlers/recipe';
-import { getSearchResults } from './handlers/search';
+import { getRecipes, getRecipe, updateRecipe, createRecipe, deleteRecipe } from './handlers/recipe';
+import { getRecipeTypes, getRecipeTags } from './handlers/filters';
 
 
 const router = Router()
@@ -47,9 +47,7 @@ router.delete('/recipe/:id', deleteRecipe)
 
 // Recipe types
 router.get('/recipe-types', getRecipeTypes)
-
-// Search
-router.get('/search', getSearchResults)
+router.get('/recipe-tags', getRecipeTags)
 
 // Shopping list routes
 

@@ -22,6 +22,7 @@ export const getRecipes = async (req: Request, res: Response, next: NextFunction
     const tags = req.query.tags ? req.query.tags.split(',') : [];
     const type = req.query.type;
     const time = req.query.time ? parseInt(req.query.time) : 0;
+    const search = req.query.search ? req.query.search.split(',') : [];
     const page = req.query.page ? parseInt(req.query.page) : 1;
     const limit = req.query.limit ? parseInt(req.query.limit) : 12;
     const offset = (page - 1) * limit;
@@ -36,7 +37,14 @@ export const getRecipes = async (req: Request, res: Response, next: NextFunction
             AND: [
               tags.length > 0 ? { tags: { hasEvery: tags } } : {},
               type ? { type: type } : {},
-              time > 0 ? { time: { lte: time } } : {}
+              time > 0 ? { time: { lte: time } } : {},
+              search.length > 0 ? { OR: [
+                { name: { contains: search[0], mode: 'insensitive' } },
+                { description: { contains: search[0], mode: 'insensitive' } },
+                // Search for both the lowercase and uppercase version of the tag.
+                { tags: { hasSome: search.map((tag: string) => tag.toLowerCase()) } },
+                { tags: { hasSome: search.map((tag: string) => tag.charAt(0).toUpperCase() + tag.slice(1)) } }
+              ] } : {},
             ]
           },
           skip: offset,
@@ -154,34 +162,6 @@ export const deleteRecipe = async (req: Request, res: Response, next: NextFuncti
     })
 
     res.json({data: deletedRecipe})
-  } catch (e) {
-    e.type = 'next'
-    next(e)
-  }
-}
-
-
-// Create a function that returns all possible types of all recipes from the user
-// This function is used to generate the type filter in the frontend
-// The function returns an array of strings
-export const getRecipeTypes = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const types = await prisma.recipe.findMany({
-      where: {
-        belongsToId: req.user.id,
-        type: {
-          not: null
-        }
-      },
-      select: {
-        type: true
-      }
-    })
-
-    // Create a new array with only the unique types
-    const uniqueTypes = Array.from(new Set(types.map(item => item.type)))
-
-    res.json({data: uniqueTypes})
   } catch (e) {
     e.type = 'next'
     next(e)
