@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "ShoppingList" ALTER COLUMN "recipes" DROP NOT NULL,
+ALTER COLUMN "recipes" SET DATA TYPE TEXT;

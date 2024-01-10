@@ -1,9 +1,9 @@
 import { Router } from 'express'
 import { body, oneOf, validationResult } from "express-validator";
-import { handleInputErrors } from './modules/middleware'
-import { getRecipes, getRecipe, updateRecipe, createRecipe, deleteRecipe } from './handlers/recipe';
-import { getRecipeTypes, getRecipeTags } from './handlers/filters';
-
+import { handleInputErrors } from '../modules/middleware'
+import { getRecipes, getRecipe, updateRecipe, createRecipe, deleteRecipe } from '../handlers/recipe';
+import { createShoppingList, deleteShoppingList, getShoppingList, updateShoppingList } from '../handlers/shopping-list';
+import { getRecipeTypes, getRecipeTags } from '../handlers/filters';
 
 const router = Router()
 
@@ -51,6 +51,22 @@ router.get('/recipe-tags', getRecipeTags)
 
 // Shopping list routes
 
-// TODO: add routes
+router.get('/list', getShoppingList)
+
+router.post('/list',
+  body('recipes').optional(),
+  body('items').optional(),
+  handleInputErrors, 
+  createShoppingList
+)
+
+router.put('/list',
+body('recipes').optional(),
+body('items').optional(),
+  handleInputErrors, 
+  updateShoppingList
+)
+
+router.delete('/list', deleteShoppingList)
 
 export default router

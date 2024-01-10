@@ -93,12 +93,14 @@ export const getRecipe = async (req, res, next) => {
 
 // Create one recipe
 export const createRecipe = async (req: Request, res: Response, next: NextFunction) => {
-  console.log('req', req.body)
+  const url = req.body.name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '')
+
   try {
     const recipe = await prisma.recipe.create({
       data: {
         name: req.body.name,
         description: req.body.description,
+        url: url,
         image: req.body.image,
         persons: req.body.persons,
         tags: req.body.tags,
@@ -106,7 +108,8 @@ export const createRecipe = async (req: Request, res: Response, next: NextFuncti
         difficulty: req.body.difficulty,
         type: req.body.type,
         ingredients: req.body.ingredients,
-        steps: req.body.steps.map((step: string) => [step]), // convert each step to a 1-dimensional array
+        isPublic: req.body.isPublic,
+        steps: req.body.steps,
         belongsToId: req.user.id
       }
     })
@@ -120,6 +123,13 @@ export const createRecipe = async (req: Request, res: Response, next: NextFuncti
 
 // Update one recipe
 export const updateRecipe = async (req: Request, res: Response, next: NextFunction) => {
+  // convert the name in a url
+  let url = req.body.url; // Store the current URL
+
+  if (req.body.name) {
+    url = req.body.name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, ''); // Update the URL if the name is provided
+  }
+
   try {
     const updatedRecipe = await prisma.recipe.update({
       where: {
@@ -127,10 +137,11 @@ export const updateRecipe = async (req: Request, res: Response, next: NextFuncti
           id: parseInt(req.params.id),
           belongsToId: req.user.id
         }
-      },
+      }, 
       data: {
         name: req.body.name,
         description: req.body.description,
+        url: url,
         image: req.body.image,
         persons: req.body.persons,
         tags: req.body.tags,
@@ -138,6 +149,7 @@ export const updateRecipe = async (req: Request, res: Response, next: NextFuncti
         difficulty: req.body.difficulty,
         type: req.body.type,
         ingredients: req.body.ingredients,
+        isPublic: req.body.isPublic,
         steps: req.body.steps,
       }
     })

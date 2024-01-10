@@ -1,8 +1,10 @@
 import express from 'express'
-import router from './router'
+import router from './routers/router'
+import publicRouter from './routers/public'
 import cors from 'cors'
 import morgan from 'morgan'
 import { protect } from './modules/auth'
+import { limiter } from './modules/limiter'
 import { createNewUser, signIn } from './handlers/user';
 import { passwordResetRequest, updatePassword } from './handlers/password-reset';
 
@@ -16,6 +18,8 @@ app.use(morgan('dev'))
 app.use(express.json())
 // Use urlencoded for url param encoding and decoding.
 app.use(express.urlencoded({extended: true}))
+// Add Rate limiter
+app.use(limiter)
 
 // Todo: remove/rewrite this (for testing only)
 app.get("/", (req, res) => {
@@ -26,6 +30,9 @@ app.get("/", (req, res) => {
 // This adds a default path to the api paths. 
 // Protect is the authentication function before accessing the router.
 app.use('/api', protect, router)
+
+// This adds a default path to the public api paths.
+app.use('/public', publicRouter)
 
 // This sets this handler including the path for how to call them for a post request to create new users and sign in.
 // Unlike above router, these are not protected (as the user has no token yet)

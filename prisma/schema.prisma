@@ -11,19 +11,20 @@ datasource db {
 }
 
 model User {
-  id            String         @id @default(uuid())
-  createdAt     DateTime       @default(now())
-  username      String         @unique
-  email         String         @unique
-  password      String
-  recipes       Recipe[]
-  shoppinglists ShoppingList[]
+  id           String         @id @default(uuid())
+  createdAt    DateTime       @default(now())
+  username     String         @unique
+  email        String         @unique
+  password     String
+  recipes      Recipe[]
+  shoppinglist ShoppingList[]
 }
 
 model Recipe {
   id          Int      @id @default(autoincrement())
   createdAt   DateTime @default(now())
   name        String
+  url         String?
   description String?
   image       String?
   persons     Int
@@ -33,6 +34,7 @@ model Recipe {
   type        String?
   ingredients Json
   steps       String[]
+  isPublic    Boolean  @default(false)
   belongsToId String
   belongsTo   User     @relation(fields: [belongsToId], references: [id])
 
@@ -41,11 +43,10 @@ model Recipe {
 
 model ShoppingList {
   id          Int      @id @default(autoincrement())
-  name        String
-  createdAt   DateTime @default(now())
-  recipeList  Json
+  recipes     Json[]
+  items       String[]
   belongsToId String
   belongsTo   User     @relation(fields: [belongsToId], references: [id])
 
-  @@unique([id, belongsToId])
+  @@unique([belongsToId])
 }
