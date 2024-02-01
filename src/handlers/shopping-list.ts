@@ -23,7 +23,6 @@ export const createShoppingList = async (req: Request, res: Response, next: Next
 // Get the shopping list
 export const getShoppingList = async (req, res, next) => {
   try {
-
     const list = await prisma.shoppingList.findFirst({
       where: {
         belongsToId: req.user.id
@@ -37,8 +36,18 @@ export const getShoppingList = async (req, res, next) => {
   }
 }
 
-// Update the shopping list
-export const updateShoppingList = async (req: Request, res: Response, next: NextFunction) => {
+/**
+ * Updates the shopping list based on the request body.
+ * If the shopping list is empty, adds all the recipes from the request body to the shopping list.
+ * If the shopping list is not empty, compares the recipes in the request body with the recipes in the shopping list and updates them accordingly.
+ * Finally, returns the updated shopping list.
+ *
+ * @param req - The request object.
+ * @param res - The response object.
+ * @param next - The next function.
+ * @returns The updated shopping list.
+ */
+export const updateShoppingListRecipes = async (req: Request, res: Response, next: NextFunction) => {
   try {
     // Get the existing shopping list
     const shoppingList = await prisma.shoppingList.findFirst({
@@ -50,7 +59,6 @@ export const updateShoppingList = async (req: Request, res: Response, next: Next
     // Track the recipes that need to be added to the shopping list
     let newRecipes = [];
  
-    // Compare the recipes in the request body with the recipes in the shopping list
     console.log('shoppingList', shoppingList.recipes);
 
     // If the shopping list is empty, add all the recipes from the request body to the newRecipes list
@@ -58,67 +66,18 @@ export const updateShoppingList = async (req: Request, res: Response, next: Next
       newRecipes = req.body.recipes;
     } else {
       // If the shopping list is not empty, compare the recipes in the request body with the recipes in the shopping list
-      req.body.recipes.map((recipe: { id: number, persons: number }) => {
-        // create a list of recipe ids from the shoppingList recipes
-        const recipeIds = shoppingList.recipes.map((recipe: { id: number }) => recipe.id);
+      req.body.recipes.forEach((recipe: { id: number, persons: number }) => {
+        const existingRecipeIndex = shoppingList.recipes.findIndex((existingRecipe: { id: number, persons: number }) => existingRecipe.id === recipe.id);
 
-        // check if the recipe id is in the recipeIds list. If it is not, add it to the newRecipes list
-        if (!recipeIds.includes(recipe.id)) {
+        if (existingRecipeIndex !== -1) {
+          shoppingList.recipes[existingRecipeIndex] = recipe;
+        } else {
           newRecipes.push(recipe);
         }
       });
     }
 
-    // Track the ingredients that need to be added to the shopping list
-    let newIngredients = [];
-
-    // Get the ingredients from the newRecipes list
-    await Promise.all(
-      newRecipes.map(async (recipe: { id: number, persons: number }) => {
-        console.log('recipe', recipe.id);
-        const recipeIngredients = await prisma.recipe.findUnique({
-          where: {
-            id: recipe.id
-          },
-          select: {
-            persons: true,
-            ingredients: true
-          }
-        });
-
-        // Multiply the ingredient amounts by the number of persons
-        if (Array.isArray(recipeIngredients.ingredients)) {
-          recipeIngredients.ingredients.forEach((ingredient: { amount: number, ingredient: string }) => {
-            if (recipe.persons !== recipeIngredients.persons) {
-              ingredient.amount = ingredient.amount * (recipe.persons / recipeIngredients.persons);
-            }
-
-            // Check if the ingredient already exists in the newIngredients list
-            const existingIngredient = newIngredients.find((newIngredient) => newIngredient.ingredient === ingredient.ingredient);
-
-            if (existingIngredient) {
-              // If the ingredient already exists, add the amounts together
-              existingIngredient.amount += ingredient.amount;
-            } else {
-              // If the ingredient doesn't exist, add it to the newIngredients list
-              newIngredients.push(ingredient);
-            }
-          });
-        } else {
-          // Handle the case where recipeIngredients.ingredients is not an array
-          console.log('recipeIngredients.ingredients is not an array');
-        }
-      })
-    ) as any[]; // ToDo: Add type assertion here
-
-    console.log('newIngredients', newIngredients);
-
-    // Convert the ingredients to a string, starting with the amound, then the unit, then the ingredient
-    newIngredients = newIngredients.map((ingredient) => {
-      return `${ingredient.amount} ${ingredient.unit} ${ingredient.ingredient}`;
-    });
-
-    console.log('newIngredients', newIngredients);
+    console.log('newRecipes', newRecipes)
 
     // Add the new recipes and ingredients to the shopping list
     const updatedList = await prisma.shoppingList.update({
@@ -127,7 +86,7 @@ export const updateShoppingList = async (req: Request, res: Response, next: Next
       },
       data: {
         recipes: {
-          push: newRecipes
+          set: [...shoppingList.recipes, ...newRecipes]
         }
       }
     });
@@ -141,27 +100,129 @@ export const updateShoppingList = async (req: Request, res: Response, next: Next
 };
 
 
+export const removeRecipeFromShoppingList = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    // Get the existing shopping list
+    const shoppingList = await prisma.shoppingList.findFirst({
+      where: {
+        belongsToId: req.user.id
+      }
+    });
 
+    // Get the recipes from the shopping list
+    const recipes = shoppingList.recipes;
 
-// Update the shopping list
-export const updateShoppingListOld = async (req: Request, res: Response, next: NextFunction) => {
+    // Get the recipe IDs to be removed from the request body
+    const recipeIdsToRemove = req.body.ids;
+
+    // Remove the recipes from the shopping list
+    const updatedList = await prisma.shoppingList.update({
+      where: {
+        belongsToId: req.user.id
+      },
+      data: {
+        recipes: {
+          set: recipes.filter((recipe: { id: number }) => !recipeIdsToRemove.includes(recipe.id))
+        }
+      } 
+    });
+
+    res.json({ data: updatedList });
+  } catch (e) {
+    e.type = 'next';
+    next(e);
+  }
+}
+
+  // Get the list of ingredients from the request body and save it in the items of the shopping list
+export const updateShoppingListItems = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const updatedList = await prisma.shoppingList.update({
       where: {
         belongsToId: req.user.id
       },
       data: {
-        recipes: req.body.recipes,
-        items: req.body.items
+        items: {
+          set: req.body.items
+        },
+        extraItems: {
+          set: req.body.extraItems
+        }
+      },
+    });
+
+    res.json({ data: updatedList });
+  } catch (e) {
+    e.type = 'next';
+    next(e);
+  }
+}
+
+// OLD FUNCTION @TODO: Permenantly remove this function
+export const updateIngredientByRecipeShoppingList = async (req: Request, res: Response, next: NextFunction) => {
+    // Get the existing shopping list
+    const shoppingList = await prisma.shoppingList.findFirst({
+      where: {
+        belongsToId: req.user.id
+      }
+    });
+
+    // Get the recipes from the shopping list
+    const recipes = shoppingList.recipes;
+ 
+    console.log('recipes', shoppingList.recipes);
+
+    // Track the ingredients that need to be added to the shopping list
+    let newIngredients = [];
+
+    recipes.map(async (recipe: { id: number, persons: number }) => {
+      console.log('recipe', recipe.id);
+      const recipeIngredients = await prisma.recipe.findUnique({
+        where: {
+          id: recipe.id
+        },
+        select: {
+          persons: true,
+          ingredients: true
+        }
+      });
+
+      // Multiply the ingredient amounts by the number of persons
+      if (Array.isArray(recipeIngredients.ingredients)) {
+        recipeIngredients.ingredients.forEach((ingredient: { amount: number, ingredient: string }) => {
+          if (recipe.persons !== recipeIngredients.persons) {
+            ingredient.amount = ingredient.amount * (recipe.persons / recipeIngredients.persons);
+          }
+
+          // Check if the ingredient already exists in the newIngredients list
+          const existingIngredient = newIngredients.find((newIngredient) => newIngredient.ingredient === ingredient.ingredient);
+
+          if (existingIngredient) {
+            // If the ingredient already exists, add the amounts together
+            existingIngredient.amount += ingredient.amount;
+          } else {
+            // If the ingredient doesn't exist, add it to the newIngredients list
+            newIngredients.push(ingredient);
+          }
+        });
+      } else {
+        // Handle the case where recipeIngredients.ingredients is not an array
+        console.log('recipeIngredients.ingredients is not an array');
       }
     })
 
-    res.json({data: updatedList})
-  } catch (e) {
-    e.type = 'next'
-    next(e)
-  }
+
+    console.log('newIngredients', newIngredients);
+
+    // Convert the ingredients to a string, starting with the amound, then the unit, then the ingredient
+    newIngredients = newIngredients.map((ingredient) => {
+      return `${ingredient.amount} ${ingredient.unit} ${ingredient.ingredient}`;
+    });
+
+    console.log('newIngredients', newIngredients);
 }
+
+
  
 // Delete the Shopping list. Should be called when a user is deleted.
 export const deleteShoppingList = async (req: Request, res: Response, next: NextFunction) => {

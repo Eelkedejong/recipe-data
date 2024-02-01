@@ -45,6 +45,7 @@ model ShoppingList {
   id          Int      @id @default(autoincrement())
   recipes     Json[]
   items       String[]
+  extraItems  String[]
   belongsToId String
   belongsTo   User     @relation(fields: [belongsToId], references: [id])
 

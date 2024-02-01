@@ -19,6 +19,7 @@ import { Request, Response, NextFunction } from 'express';
 // Example: /api/recipe/?tags=Oven,Italiaans&type=Diner&time=60&page=1&limit=9
 export const getRecipes = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const ids = req.query.ids ? req.query.ids.split(',') : []; // Added option to enter multiple ids
     const tags = req.query.tags ? req.query.tags.split(',') : [];
     const type = req.query.type;
     const time = req.query.time ? parseInt(req.query.time) : 0;
@@ -35,6 +36,7 @@ export const getRecipes = async (req: Request, res: Response, next: NextFunction
         recipes: {
           where: {
             AND: [
+              ids.length > 0 ? { id: { in: ids.map((id: string) => parseInt(id)) } } : {}, // Only return recipes with specified ids
               tags.length > 0 ? { tags: { hasEvery: tags } } : {},
               type ? { type: type } : {},
               time > 0 ? { time: { lte: time } } : {},
@@ -56,6 +58,7 @@ export const getRecipes = async (req: Request, res: Response, next: NextFunction
     const count = await prisma.recipe.count({
       where: {
         AND: [
+          ids.length > 0 ? { id: { in: ids.map((id: string) => parseInt(id)) } } : {}, // Only count recipes with specified ids
           tags.length > 0 ? { tags: { hasEvery: tags } } : {},
           type ? { type: type } : {},
           time > 0 ? { time: { lte: time } } : {}

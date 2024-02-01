@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { body, oneOf, validationResult } from "express-validator";
 import { handleInputErrors } from '../modules/middleware'
 import { getRecipes, getRecipe, updateRecipe, createRecipe, deleteRecipe } from '../handlers/recipe';
-import { createShoppingList, deleteShoppingList, getShoppingList, updateShoppingList } from '../handlers/shopping-list';
+import { createShoppingList, deleteShoppingList, getShoppingList, updateShoppingListRecipes, updateShoppingListItems, removeRecipeFromShoppingList } from '../handlers/shopping-list';
 import { getRecipeTypes, getRecipeTags } from '../handlers/filters';
 
 const router = Router()
@@ -60,11 +60,22 @@ router.post('/list',
   createShoppingList
 )
 
-router.put('/list',
+router.put('/list/recipes',
 body('recipes').optional(),
+  handleInputErrors, 
+  updateShoppingListRecipes
+)
+
+router.put('/list/recipes/remove',
+body('recipes').optional(),
+  handleInputErrors, 
+  removeRecipeFromShoppingList
+)
+
+router.put('/list/items',
 body('items').optional(),
   handleInputErrors, 
-  updateShoppingList
+  updateShoppingListItems
 )
 
 router.delete('/list', deleteShoppingList)
