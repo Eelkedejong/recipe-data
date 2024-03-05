@@ -109,11 +109,14 @@ export const removeRecipeFromShoppingList = async (req: Request, res: Response, 
       }
     });
 
+    console.log('body:', req.body)
+
     // Get the recipes from the shopping list
     const recipes = shoppingList.recipes;
 
-    // Get the recipe IDs to be removed from the request body
-    const recipeIdsToRemove = req.body.ids;
+    // Get the recipe IDs to be removed from the header
+    const recipeIdsToRemove = req.body.ids
+    console.log('recipeIdsToRemove', recipeIdsToRemove);
 
     // Remove the recipes from the shopping list
     const updatedList = await prisma.shoppingList.update({
