@@ -24,6 +24,7 @@ app.use(limiter)
 // Todo: remove/rewrite this (for testing only)
 app.get("/", (req, res) => {
   res.status(200)
+  res.json({message: 'server is live'})
 });
 
 // This adds a default path to the api paths. 
