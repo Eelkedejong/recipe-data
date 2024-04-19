@@ -42,14 +42,18 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getRecipeTags = void 0;
 var db_1 = __importDefault(require("../../db"));
 var getRecipeTags = function (req, res, next) { return __awaiter(void 0, void 0, void 0, function () {
-    var tags, uniqueTags, e_1;
+    var type, tags, uniqueTags, e_1;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
-                _a.trys.push([0, 2, , 3]);
+                type = req.query.type;
+                _a.label = 1;
+            case 1:
+                _a.trys.push([1, 3, , 4]);
                 return [4 /*yield*/, db_1.default.recipe.findMany({
                         where: {
-                            isPublic: true
+                            isPublic: true,
+                            type: type ? type : undefined
                         },
                         select: {
                             tags: true
@@ -57,17 +61,17 @@ var getRecipeTags = function (req, res, next) { return __awaiter(void 0, void 0,
                     })
                     // Create a new array with only the unique tags
                 ];
-            case 1:
+            case 2:
                 tags = _a.sent();
                 uniqueTags = Array.from(new Set(tags.map(function (item) { return item.tags; }).flat()));
                 res.json({ data: uniqueTags });
-                return [3 /*break*/, 3];
-            case 2:
+                return [3 /*break*/, 4];
+            case 3:
                 e_1 = _a.sent();
                 e_1.type = 'next';
                 next(e_1);
-                return [3 /*break*/, 3];
-            case 3: return [2 /*return*/];
+                return [3 /*break*/, 4];
+            case 4: return [2 /*return*/];
         }
     });
 }); };

@@ -69,7 +69,7 @@ var getRecipes = function (req, res, next) { return __awaiter(void 0, void 0, vo
                 time = req.query.time ? parseInt(req.query.time) : 0;
                 search = req.query.search ? req.query.search.split(',') : [];
                 page = req.query.page ? parseInt(req.query.page) : 1;
-                limit = req.query.limit ? parseInt(req.query.limit) : 12;
+                limit = req.query.limit ? parseInt(req.query.limit) : 9;
                 offset = (page - 1) * limit;
                 return [4 /*yield*/, db_1.default.user.findUnique({
                         where: {
@@ -91,6 +91,9 @@ var getRecipes = function (req, res, next) { return __awaiter(void 0, void 0, vo
                                                 { tags: { hasSome: search.map(function (tag) { return tag.charAt(0).toUpperCase() + tag.slice(1); }) } }
                                             ] } : {},
                                     ]
+                                },
+                                orderBy: {
+                                    id: 'desc'
                                 },
                                 skip: offset,
                                 take: limit,

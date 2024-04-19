@@ -25,7 +25,7 @@ export const getRecipes = async (req: Request, res: Response, next: NextFunction
     const time = req.query.time ? parseInt(req.query.time) : 0;
     const search = req.query.search ? req.query.search.split(',') : [];
     const page = req.query.page ? parseInt(req.query.page) : 1;
-    const limit = req.query.limit ? parseInt(req.query.limit) : 12;
+    const limit = req.query.limit ? parseInt(req.query.limit) : 9;
     const offset = (page - 1) * limit;
 
     const user = await prisma.user.findUnique({
@@ -48,6 +48,9 @@ export const getRecipes = async (req: Request, res: Response, next: NextFunction
                 { tags: { hasSome: search.map((tag: string) => tag.charAt(0).toUpperCase() + tag.slice(1)) } }
               ] } : {},
             ]
+          },
+          orderBy: {
+            id: 'desc'
           },
           skip: offset,
           take: limit,

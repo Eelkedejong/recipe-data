@@ -2,10 +2,13 @@ import prisma from "../../db";
 import { Request, Response, NextFunction } from 'express';
 
 export const getRecipeTags = async (req: Request, res: Response, next: NextFunction) => {
+  const type = req.query.type
+
   try {
     const tags = await prisma.recipe.findMany({
       where: {
-        isPublic: true
+        isPublic: true,
+        type: type ? type : undefined
       },
       select: {
         tags: true
