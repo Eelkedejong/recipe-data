@@ -3,7 +3,6 @@ import { Request, Response, NextFunction } from 'express';
 
 // Create Shopping list. This is called when a new user is created.
 export const createShoppingList = async (req: Request, res: Response, next: NextFunction) => {
-  console.log('req', req.body)
   try {
     const list = await prisma.shoppingList.create({
       data: {
@@ -58,8 +57,6 @@ export const updateShoppingListRecipes = async (req: Request, res: Response, nex
 
     // Track the recipes that need to be added to the shopping list
     let newRecipes = [];
- 
-    console.log('shoppingList', shoppingList.recipes);
 
     // If the shopping list is empty, add all the recipes from the request body to the newRecipes list
     if (shoppingList.recipes.length === 0) {
@@ -76,8 +73,6 @@ export const updateShoppingListRecipes = async (req: Request, res: Response, nex
         }
       });
     }
-
-    console.log('newRecipes', newRecipes)
 
     // Add the new recipes and ingredients to the shopping list
     const updatedList = await prisma.shoppingList.update({
@@ -109,14 +104,11 @@ export const removeRecipeFromShoppingList = async (req: Request, res: Response, 
       }
     });
 
-    console.log('body:', req.body)
-
     // Get the recipes from the shopping list
     const recipes = shoppingList.recipes;
 
     // Get the recipe IDs to be removed from the header
     const recipeIdsToRemove = req.body.ids
-    console.log('recipeIdsToRemove', recipeIdsToRemove);
 
     // Remove the recipes from the shopping list
     const updatedList = await prisma.shoppingList.update({
@@ -173,13 +165,11 @@ export const updateIngredientByRecipeShoppingList = async (req: Request, res: Re
     // Get the recipes from the shopping list
     const recipes = shoppingList.recipes;
  
-    console.log('recipes', shoppingList.recipes);
 
     // Track the ingredients that need to be added to the shopping list
     let newIngredients = [];
 
     recipes.map(async (recipe: { id: number, persons: number }) => {
-      console.log('recipe', recipe.id);
       const recipeIngredients = await prisma.recipe.findUnique({
         where: {
           id: recipe.id
@@ -214,15 +204,10 @@ export const updateIngredientByRecipeShoppingList = async (req: Request, res: Re
       }
     })
 
-
-    console.log('newIngredients', newIngredients);
-
     // Convert the ingredients to a string, starting with the amound, then the unit, then the ingredient
     newIngredients = newIngredients.map((ingredient) => {
       return `${ingredient.amount} ${ingredient.unit} ${ingredient.ingredient}`;
     });
-
-    console.log('newIngredients', newIngredients);
 }
 
 

@@ -65,16 +65,19 @@ export const createNewUser = async (req, res, next) => {
 }
 
 export const signIn = async (req, res, next) => {
+  console.log(req.body)
   try  {
-    // Check if the user entered an email or a username
-    const user = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { email: req.body.loginname },
-          { username: req.body.loginname }
-        ]
-      }
+    // First, try to find the user by username
+    let user = await prisma.user.findUnique({
+      where: { username: req.body.loginname }
     })
+
+    // If no user was found, try to find the user by email
+    if (!user) {
+      user = await prisma.user.findUnique({
+        where: { email: req.body.loginname }
+      })
+    }
 
     if (!user) {
       res.status(401);
