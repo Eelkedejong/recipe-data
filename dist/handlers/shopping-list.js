@@ -56,10 +56,7 @@ var createShoppingList = function (req, res, next) { return __awaiter(void 0, vo
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
-                console.log('req', req.body);
-                _a.label = 1;
-            case 1:
-                _a.trys.push([1, 3, , 4]);
+                _a.trys.push([0, 2, , 3]);
                 return [4 /*yield*/, db_1.default.shoppingList.create({
                         data: {
                             recipes: req.body.recipes,
@@ -67,16 +64,16 @@ var createShoppingList = function (req, res, next) { return __awaiter(void 0, vo
                             belongsToId: req.user.id
                         }
                     })];
-            case 2:
+            case 1:
                 list = _a.sent();
                 res.json({ data: list });
-                return [3 /*break*/, 4];
-            case 3:
+                return [3 /*break*/, 3];
+            case 2:
                 e_1 = _a.sent();
                 e_1.type = 'next';
                 next(e_1);
-                return [3 /*break*/, 4];
-            case 4: return [2 /*return*/];
+                return [3 /*break*/, 3];
+            case 3: return [2 /*return*/];
         }
     });
 }); };
@@ -132,7 +129,6 @@ var updateShoppingListRecipes = function (req, res, next) { return __awaiter(voi
             case 1:
                 shoppingList_1 = _a.sent();
                 newRecipes_1 = [];
-                console.log('shoppingList', shoppingList_1.recipes);
                 // If the shopping list is empty, add all the recipes from the request body to the newRecipes list
                 if (shoppingList_1.recipes.length === 0) {
                     newRecipes_1 = req.body.recipes;
@@ -149,7 +145,6 @@ var updateShoppingListRecipes = function (req, res, next) { return __awaiter(voi
                         }
                     });
                 }
-                console.log('newRecipes', newRecipes_1);
                 return [4 /*yield*/, db_1.default.shoppingList.update({
                         where: {
                             belongsToId: req.user.id
@@ -188,10 +183,8 @@ var removeRecipeFromShoppingList = function (req, res, next) { return __awaiter(
                     })];
             case 1:
                 shoppingList = _a.sent();
-                console.log('body:', req.body);
                 recipes = shoppingList.recipes;
                 recipeIdsToRemove_1 = req.body.ids;
-                console.log('recipeIdsToRemove', recipeIdsToRemove_1);
                 return [4 /*yield*/, db_1.default.shoppingList.update({
                         where: {
                             belongsToId: req.user.id
@@ -263,23 +256,20 @@ var updateIngredientByRecipeShoppingList = function (req, res, next) { return __
             case 1:
                 shoppingList = _a.sent();
                 recipes = shoppingList.recipes;
-                console.log('recipes', shoppingList.recipes);
                 newIngredients = [];
                 recipes.map(function (recipe) { return __awaiter(void 0, void 0, void 0, function () {
                     var recipeIngredients;
                     return __generator(this, function (_a) {
                         switch (_a.label) {
-                            case 0:
-                                console.log('recipe', recipe.id);
-                                return [4 /*yield*/, db_1.default.recipe.findUnique({
-                                        where: {
-                                            id: recipe.id
-                                        },
-                                        select: {
-                                            persons: true,
-                                            ingredients: true
-                                        }
-                                    })];
+                            case 0: return [4 /*yield*/, db_1.default.recipe.findUnique({
+                                    where: {
+                                        id: recipe.id
+                                    },
+                                    select: {
+                                        persons: true,
+                                        ingredients: true
+                                    }
+                                })];
                             case 1:
                                 recipeIngredients = _a.sent();
                                 // Multiply the ingredient amounts by the number of persons
@@ -308,12 +298,10 @@ var updateIngredientByRecipeShoppingList = function (req, res, next) { return __
                         }
                     });
                 }); });
-                console.log('newIngredients', newIngredients);
                 // Convert the ingredients to a string, starting with the amound, then the unit, then the ingredient
                 newIngredients = newIngredients.map(function (ingredient) {
                     return "".concat(ingredient.amount, " ").concat(ingredient.unit, " ").concat(ingredient.ingredient);
                 });
-                console.log('newIngredients', newIngredients);
                 return [2 /*return*/];
         }
     });

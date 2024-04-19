@@ -100,7 +100,6 @@ var getRecipeTags = function (req, res, next) { return __awaiter(void 0, void 0,
             case 1:
                 tags = _a.sent();
                 uniqueTags = Array.from(new Set(tags.map(function (item) { return item.tags; }).flat()));
-                console.log('uniqueTags', uniqueTags);
                 res.json({ data: uniqueTags });
                 return [3 /*break*/, 3];
             case 2:
