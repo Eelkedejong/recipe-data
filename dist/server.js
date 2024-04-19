@@ -26,7 +26,7 @@ app.use(limiter_1.limiter);
 // Todo: remove/rewrite this (for testing only)
 app.get("/", function (req, res) {
     res.status(200);
-    res.json({ message: 'hello' });
+    res.json({ message: 'server is live' });
 });
 // This adds a default path to the api paths. 
 // Protect is the authentication function before accessing the router.

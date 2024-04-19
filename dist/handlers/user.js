@@ -43,7 +43,7 @@ exports.signIn = exports.createNewUser = void 0;
 var db_1 = __importDefault(require("../db"));
 var auth_1 = require("../modules/auth");
 var createNewUser = function (req, res, next) { return __awaiter(void 0, void 0, void 0, function () {
-    var hash, userExists, emailExists, user, token, e_1;
+    var hash, userExists, emailExists, emailFormat, user, token, e_1;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
@@ -78,6 +78,12 @@ var createNewUser = function (req, res, next) { return __awaiter(void 0, void 0,
                     res.json({ message: "The email address is already used by another account." });
                     return [2 /*return*/];
                 }
+                emailFormat = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailFormat.test(req.body.email)) {
+                    res.status(401);
+                    res.json({ message: "The email address is not formatted correctly." });
+                    return [2 /*return*/];
+                }
                 return [4 /*yield*/, db_1.default.user.create({
                         data: {
                             username: req.body.username,
@@ -105,40 +111,52 @@ var createNewUser = function (req, res, next) { return __awaiter(void 0, void 0,
 }); };
 exports.createNewUser = createNewUser;
 var signIn = function (req, res, next) { return __awaiter(void 0, void 0, void 0, function () {
-    var user, isValid, token, e_2;
+    var body, user, isValid, token, e_2;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
-                _a.trys.push([0, 3, , 4]);
-                return [4 /*yield*/, db_1.default.user.findUnique({
-                        where: {
-                            email: req.body.email
-                        }
-                    })];
+                console.log(req.body);
+                body = req.body;
+                _a.label = 1;
             case 1:
+                _a.trys.push([1, 6, , 7]);
+                return [4 /*yield*/, db_1.default.user.findUnique({
+                        where: { username: body.loginname }
+                    })
+                    // If no user was found, try to find the user by email
+                ];
+            case 2:
                 user = _a.sent();
+                if (!!user) return [3 /*break*/, 4];
+                return [4 /*yield*/, db_1.default.user.findUnique({
+                        where: { email: body.loginname }
+                    })];
+            case 3:
+                user = _a.sent();
+                _a.label = 4;
+            case 4:
                 if (!user) {
                     res.status(401);
-                    res.json({ message: "The username or password did not match. Please try again." });
+                    res.json({ message: "The username, email or password did not match. Please try again." });
                     return [2 /*return*/];
                 }
-                return [4 /*yield*/, (0, auth_1.comparePasswords)(req.body.password, user.password)];
-            case 2:
+                return [4 /*yield*/, (0, auth_1.comparePasswords)(body.password, user.password)];
+            case 5:
                 isValid = _a.sent();
                 if (!isValid) {
                     res.status(401);
-                    res.json({ message: "The username or password did not match. Please try again." });
+                    res.json({ message: "The username, email or password did not match. Please try again." });
                     return [2 /*return*/];
                 }
                 token = (0, auth_1.createJWT)(user);
                 res.json({ token: token, username: user.username });
-                return [3 /*break*/, 4];
-            case 3:
+                return [3 /*break*/, 7];
+            case 6:
                 e_2 = _a.sent();
                 e_2.type = 'next';
                 next(e_2);
-                return [3 /*break*/, 4];
-            case 4: return [2 /*return*/];
+                return [3 /*break*/, 7];
+            case 7: return [2 /*return*/];
         }
     });
 }); };
