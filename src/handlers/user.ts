@@ -34,6 +34,14 @@ export const createNewUser = async (req, res, next) => {
       return;
     }
 
+    // Do a check if the email is formatted correctly
+    const emailFormat = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailFormat.test(req.body.email)) {
+      res.status(401);
+      res.json({message: "The email address is not formatted correctly."})
+      return;
+    }
+
     // Fill the data with content from the request body.
     // Await is used because we interact with a db and a network.
     const user = await prisma.user.create({
@@ -58,17 +66,19 @@ export const createNewUser = async (req, res, next) => {
 
 export const signIn = async (req, res, next) => {
   try  {
-    // We are not querying for a combination of a username and password
-    // We are simply checkout: does this username exist.
-    const user = await prisma.user.findUnique({
+    // Check if the user entered an email or a username
+    const user = await prisma.user.findFirst({
       where: {
-        email: req.body.email
+        OR: [
+          { email: req.body.loginname },
+          { username: req.body.loginname }
+        ]
       }
     })
 
     if (!user) {
       res.status(401);
-      res.json({message: "The username or password did not match. Please try again."})
+      res.json({message: "The username, email or password did not match. Please try again."})
       return;
     }
 
@@ -78,7 +88,7 @@ export const signIn = async (req, res, next) => {
 
     if (!isValid) {
       res.status(401);
-      res.json({message: "The username or password did not match. Please try again."});
+      res.json({message: "The username, email or password did not match. Please try again."});
       return;
     }
 
