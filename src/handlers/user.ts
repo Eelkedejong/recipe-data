@@ -66,16 +66,18 @@ export const createNewUser = async (req, res, next) => {
 
 export const signIn = async (req, res, next) => {
   console.log(req.body)
+  const { body } = req;
+
   try  {
     // First, try to find the user by username
     let user = await prisma.user.findUnique({
-      where: { username: req.body.loginname }
+      where: { username: body.loginname }
     })
 
     // If no user was found, try to find the user by email
     if (!user) {
       user = await prisma.user.findUnique({
-        where: { email: req.body.loginname }
+        where: { email: body.loginname }
       })
     }
 
@@ -87,7 +89,7 @@ export const signIn = async (req, res, next) => {
 
     // Check the password of the request to the one that the username found in the database.
     // First is plain text, second is a hash.
-    const isValid = await comparePasswords(req.body.password, user.password)
+    const isValid = await comparePasswords(body.password, user.password)
 
     if (!isValid) {
       res.status(401);
