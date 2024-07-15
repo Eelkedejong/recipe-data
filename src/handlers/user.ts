@@ -55,6 +55,14 @@ export const createNewUser = async (req, res, next) => {
     // Create a token from our auth module
     const token = createJWT(user)
 
+    // Get the user id and create a shopping list for the user
+    // This is done so we can add recipes to the shopping list later on.
+    await prisma.shoppingList.create({
+      data: {
+        belongsToId: user.id
+      }
+    })
+
     // Fill the reponse with the JWT (Jason web token) 
     // This token containts a user id and username (see auth.ts createJWT function)
     res.json({ token: token, username: user.username })
