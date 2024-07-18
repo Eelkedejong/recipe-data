@@ -58,20 +58,9 @@ export const getRecipes = async (req: Request, res: Response, next: NextFunction
       }
     });
 
-    const count = await prisma.recipe.count({
-      where: {
-        AND: [
-          ids.length > 0 ? { id: { in: ids.map((id: string) => parseInt(id)) } } : {}, // Only count recipes with specified ids
-          tags.length > 0 ? { tags: { hasEvery: tags } } : {},
-          type ? { type: type } : {},
-          time > 0 ? { time: { lte: time } } : {}
-        ]
-      }
-    });
+    const totalPages = Math.ceil(user.recipes.length / limit);
 
-    const totalPages = Math.ceil(count / limit);
-
-    res.json({data: user.recipes, count, page, limit, totalPages});
+    res.json({data: user.recipes, count: user.recipes.length, page, limit, totalPages});
   } catch (e) {
     e.type = 'next';
     next(e);
