@@ -47,7 +47,7 @@ var createNewUser = function (req, res, next) { return __awaiter(void 0, void 0,
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
-                _a.trys.push([0, 5, , 6]);
+                _a.trys.push([0, 6, , 7]);
                 return [4 /*yield*/, (0, auth_1.hashPassword)(req.body.password)
                     // Check if there is a user with the same username
                 ];
@@ -96,16 +96,30 @@ var createNewUser = function (req, res, next) { return __awaiter(void 0, void 0,
             case 4:
                 user = _a.sent();
                 token = (0, auth_1.createJWT)(user);
+                // Get the user id and create a shopping list for the user
+                // This is done so we can add recipes to the shopping list later on.
+                return [4 /*yield*/, db_1.default.shoppingList.create({
+                        data: {
+                            belongsToId: user.id
+                        }
+                    })
+                    // Fill the reponse with the JWT (Jason web token) 
+                    // This token containts a user id and username (see auth.ts createJWT function)
+                ];
+            case 5:
+                // Get the user id and create a shopping list for the user
+                // This is done so we can add recipes to the shopping list later on.
+                _a.sent();
                 // Fill the reponse with the JWT (Jason web token) 
                 // This token containts a user id and username (see auth.ts createJWT function)
                 res.json({ token: token, username: user.username });
-                return [3 /*break*/, 6];
-            case 5:
+                return [3 /*break*/, 7];
+            case 6:
                 e_1 = _a.sent();
                 e_1.type = 'next';
                 next(e_1);
-                return [3 /*break*/, 6];
-            case 6: return [2 /*return*/];
+                return [3 /*break*/, 7];
+            case 7: return [2 /*return*/];
         }
     });
 }); };
