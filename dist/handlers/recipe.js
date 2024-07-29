@@ -68,11 +68,11 @@ var db_1 = __importDefault(require("../db"));
  * @param next - The next function to call.
  */
 var getRecipes = function (req, res, next) { return __awaiter(void 0, void 0, void 0, function () {
-    var ids, tags, type, time, search, page, limit, offset, user, count, totalPages, e_1;
+    var ids, tags, type, time, search, page, limit, offset, user, totalPages, e_1;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
-                _a.trys.push([0, 3, , 4]);
+                _a.trys.push([0, 2, , 3]);
                 ids = req.query.ids ? req.query.ids.split(',') : [];
                 tags = req.query.tags ? req.query.tags.split(',') : [];
                 type = req.query.type;
@@ -112,27 +112,15 @@ var getRecipes = function (req, res, next) { return __awaiter(void 0, void 0, vo
                     })];
             case 1:
                 user = _a.sent();
-                return [4 /*yield*/, db_1.default.recipe.count({
-                        where: {
-                            AND: [
-                                ids.length > 0 ? { id: { in: ids.map(function (id) { return parseInt(id); }) } } : {},
-                                tags.length > 0 ? { tags: { hasEvery: tags } } : {},
-                                type ? { type: type } : {},
-                                time > 0 ? { time: { lte: time } } : {}
-                            ]
-                        }
-                    })];
+                totalPages = Math.ceil(user.recipes.length / limit);
+                res.json({ data: user.recipes, count: user.recipes.length, page: page, limit: limit, totalPages: totalPages });
+                return [3 /*break*/, 3];
             case 2:
-                count = _a.sent();
-                totalPages = Math.ceil(count / limit);
-                res.json({ data: user.recipes, count: count, page: page, limit: limit, totalPages: totalPages });
-                return [3 /*break*/, 4];
-            case 3:
                 e_1 = _a.sent();
                 e_1.type = 'next';
                 next(e_1);
-                return [3 /*break*/, 4];
-            case 4: return [2 /*return*/];
+                return [3 /*break*/, 3];
+            case 3: return [2 /*return*/];
         }
     });
 }); };
