@@ -41,22 +41,32 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteRecipe = exports.updateRecipe = exports.createRecipe = exports.getRecipe = exports.getRecipes = void 0;
 var db_1 = __importDefault(require("../db"));
-// Function to get the user recipes.
-// Incluced option to filter based on tags and type.
-// type is a single value (string)
-// tags is an array of strings
-// time is a single value (number). time is in minutes
-// time works as a maximum value. So if time is 30, recipes with time 30 or less will be returned.
-// page is a single value (number). page is used for pagination. 
-// page query param is used to get the current page.
-// limit is a single value (number). limit is used for how many items should be returned per page
-// Default limit is 9. This can be changed by adding a limit query to the url.
-// offset is calculated based on page and limit.
-// count is the total number of items that match the query.
-// totalPages is calculated based on count and limit.
-// Example: /api/recipe?tags=vegan,healthy&type=breakfast&time=30
-// Example: /api/recipe/?tags=Oven,Italiaans&type=Diner&time=60
-// Example: /api/recipe/?tags=Oven,Italiaans&type=Diner&time=60&page=1&limit=9
+/**
+ * Retrieves recipes based on the provided query parameters.
+ *
+ * Available options:
+ *  - Type is a single value (string)
+ *  - Tags is an array of strings
+ *  - Time is a single value (number). time is in minutes
+ *  - Time works as a maximum value. So if time is 30, recipes with time 30 or less will be returned.
+ *  - Page is a single value (number). page is used for pagination.
+ *    Page query param is used to get the current page.
+ *  - Limit is a single value (number). limit is used for how many items should be returned per page.
+ *    Default limit is 9. This can be changed by adding a limit query to the url.
+ *  - Offset is calculated based on page and limit.
+ *  - Count is the total number of items that match the query.
+ *  - TotalPages is calculated based on count and limit.
+ *
+ * Example queries:
+ * - /api/recipe?tags=vegan,healthy&type=breakfast&time=30
+ * - /api/recipe/?tags=Oven,Italiaans&type=Diner&time=60
+ * - /api/recipe/?tags=Oven,Italiaans&type=Diner&time=60&page=1&limit=9
+ *
+ *
+ * @param req - The request object.
+ * @param res - The response object.
+ * @param next - The next function to call.
+ */
 var getRecipes = function (req, res, next) { return __awaiter(void 0, void 0, void 0, function () {
     var ids, tags, type, time, search, page, limit, offset, user, count, totalPages, e_1;
     return __generator(this, function (_a) {
@@ -127,7 +137,14 @@ var getRecipes = function (req, res, next) { return __awaiter(void 0, void 0, vo
     });
 }); };
 exports.getRecipes = getRecipes;
-// Get one recipes based on id
+/**
+ * Retrieves a recipe by its ID.
+ *
+ * @param {Request} req - The request object.
+ * @param {Response} res - The response object.
+ * @param {NextFunction} next - The next function.
+ * @returns {Promise<void>} - A promise that resolves when the recipe is retrieved.
+ */
 var getRecipe = function (req, res, next) { return __awaiter(void 0, void 0, void 0, function () {
     var id, recipe, e_2;
     return __generator(this, function (_a) {
@@ -155,7 +172,13 @@ var getRecipe = function (req, res, next) { return __awaiter(void 0, void 0, voi
     });
 }); };
 exports.getRecipe = getRecipe;
-// Create one recipe
+/**
+ * Creates a new recipe.
+ *
+ * @param req - The request object.
+ * @param res - The response object.
+ * @param next - The next function.
+ */
 var createRecipe = function (req, res, next) { return __awaiter(void 0, void 0, void 0, function () {
     var url, recipe, e_3;
     return __generator(this, function (_a) {
@@ -196,7 +219,13 @@ var createRecipe = function (req, res, next) { return __awaiter(void 0, void 0, 
     });
 }); };
 exports.createRecipe = createRecipe;
-// Update one recipe
+/**
+ * Updates a recipe in the database.
+ *
+ * @param req - The request object containing the recipe data.
+ * @param res - The response object used to send the updated recipe data.
+ * @param next - The next function to be called in the middleware chain.
+ */
 var updateRecipe = function (req, res, next) { return __awaiter(void 0, void 0, void 0, function () {
     var url, updatedRecipe, e_4;
     return __generator(this, function (_a) {
@@ -245,7 +274,14 @@ var updateRecipe = function (req, res, next) { return __awaiter(void 0, void 0, 
     });
 }); };
 exports.updateRecipe = updateRecipe;
-// Delete one recipe
+/**
+ * Deletes a recipe.
+ *
+ * @param req - The request object.
+ * @param res - The response object.
+ * @param next - The next function.
+ * @returns A JSON response containing the deleted recipe data.
+ */
 var deleteRecipe = function (req, res, next) { return __awaiter(void 0, void 0, void 0, function () {
     var deletedRecipe, e_5;
     return __generator(this, function (_a) {

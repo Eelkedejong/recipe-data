@@ -50,7 +50,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteShoppingList = exports.updateIngredientByRecipeShoppingList = exports.updateShoppingListItems = exports.removeRecipeFromShoppingList = exports.updateShoppingListRecipes = exports.getShoppingList = exports.createShoppingList = void 0;
 var db_1 = __importDefault(require("../db"));
-// Create Shopping list. This is called when a new user is created.
+/**
+ * Create Shopping list. This is called when a new user is created.
+ *
+ * @param req - The request object.
+ * @param res - The response object.
+ * @param next - The next function.
+ */
 var createShoppingList = function (req, res, next) { return __awaiter(void 0, void 0, void 0, function () {
     var list, e_1;
     return __generator(this, function (_a) {
@@ -170,6 +176,14 @@ var updateShoppingListRecipes = function (req, res, next) { return __awaiter(voi
     });
 }); };
 exports.updateShoppingListRecipes = updateShoppingListRecipes;
+/**
+ * Removes recipes from the shopping list.
+ *
+ * @param req - The request object.
+ * @param res - The response object.
+ * @param next - The next function.
+ * @returns A JSON response with the updated shopping list.
+ */
 var removeRecipeFromShoppingList = function (req, res, next) { return __awaiter(void 0, void 0, void 0, function () {
     var shoppingList, recipes, recipeIdsToRemove_1, updatedList, e_4;
     return __generator(this, function (_a) {
@@ -209,7 +223,13 @@ var removeRecipeFromShoppingList = function (req, res, next) { return __awaiter(
     });
 }); };
 exports.removeRecipeFromShoppingList = removeRecipeFromShoppingList;
-// Get the list of ingredients from the request body and save it in the items of the shopping list
+/**
+ * Updates the items and extra items in the shopping list for the authenticated user.
+ *
+ * @param req - The request object containing the user ID and the updated items.
+ * @param res - The response object to send the updated shopping list.
+ * @param next - The next function to handle errors.
+ */
 var updateShoppingListItems = function (req, res, next) { return __awaiter(void 0, void 0, void 0, function () {
     var updatedList, e_5;
     return __generator(this, function (_a) {
@@ -307,7 +327,14 @@ var updateIngredientByRecipeShoppingList = function (req, res, next) { return __
     });
 }); };
 exports.updateIngredientByRecipeShoppingList = updateIngredientByRecipeShoppingList;
-// Delete the Shopping list. Should be called when a user is deleted.
+/**
+ * Delete the Shopping list. Should be called when a user is deleted.
+ *
+ * @param req - The Express request object.
+ * @param res - The Express response object.
+ * @param next - The Express next function.
+ * @returns A JSON response containing the deleted shopping list data.
+ */
 var deleteShoppingList = function (req, res, next) { return __awaiter(void 0, void 0, void 0, function () {
     var deletedList, e_6;
     return __generator(this, function (_a) {

@@ -41,9 +41,15 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getRecipeTags = exports.getRecipeTypes = void 0;
 var db_1 = __importDefault(require("../db"));
-// Create a function that returns all possible types of all recipes from the user
-// This function is used to generate the type filter in the frontend
-// The function returns an array of strings
+/**
+ * Create a function that returns all possible types of all recipes from the user
+ * This function is used to generate the type filter in the frontend
+ * The function returns an array of strings
+ *
+ * @param req - The request object.
+ * @param res - The response object.
+ * @param next - The next function.
+ */
 var getRecipeTypes = function (req, res, next) { return __awaiter(void 0, void 0, void 0, function () {
     var types, uniqueTypes, e_1;
     return __generator(this, function (_a) {
@@ -78,9 +84,15 @@ var getRecipeTypes = function (req, res, next) { return __awaiter(void 0, void 0
     });
 }); };
 exports.getRecipeTypes = getRecipeTypes;
-// Create a function that returns all possible tags of all recipes from the user
-// This function is used to generate the tag filter in the frontend
-// The function returns an array of strings
+/**
+ * Create a function that returns all possible tags of all recipes from the user
+ * This function is used to generate the tag filter in the frontend
+ * The function returns an array of strings
+ *
+ * @param req - The request object.
+ * @param res - The response object.
+ * @param next - The next function.
+ */
 var getRecipeTags = function (req, res, next) { return __awaiter(void 0, void 0, void 0, function () {
     var tags, uniqueTags, e_2;
     return __generator(this, function (_a) {

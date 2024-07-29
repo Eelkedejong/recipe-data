@@ -1,10 +1,15 @@
 import prisma from "../db";
 import { Request, Response, NextFunction } from 'express';
 
-
-// Create a function that returns all possible types of all recipes from the user
-// This function is used to generate the type filter in the frontend
-// The function returns an array of strings
+/**
+ * Create a function that returns all possible types of all recipes from the user
+ * This function is used to generate the type filter in the frontend
+ * The function returns an array of strings
+ * 
+ * @param req - The request object.
+ * @param res - The response object.
+ * @param next - The next function.
+ */
 export const getRecipeTypes = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const types = await prisma.recipe.findMany({
@@ -29,9 +34,15 @@ export const getRecipeTypes = async (req: Request, res: Response, next: NextFunc
   }
 }
 
-// Create a function that returns all possible tags of all recipes from the user
-// This function is used to generate the tag filter in the frontend
-// The function returns an array of strings
+/**
+ * Create a function that returns all possible tags of all recipes from the user
+ * This function is used to generate the tag filter in the frontend
+ * The function returns an array of strings
+ * 
+ * @param req - The request object.
+ * @param res - The response object.
+ * @param next - The next function.
+ */
 export const getRecipeTags = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const tags = await prisma.recipe.findMany({

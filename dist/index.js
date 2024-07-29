@@ -26,12 +26,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-// Use the dotenv module to make variables in the .env file globally accessable. 
-// This needs to run in the entry point of the server.
 var dotenv = __importStar(require("dotenv"));
 dotenv.config();
 var config_1 = __importDefault(require("./config"));
 var server_1 = __importDefault(require("./server"));
+// Localhost server (for development and testing only)
 server_1.default.listen(config_1.default.port, function () {
     console.log("started on http://localhost:".concat(config_1.default.port));
 });

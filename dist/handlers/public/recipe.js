@@ -41,8 +41,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getRecipe = exports.getRecipes = void 0;
 var db_1 = __importDefault(require("../../db"));
-// Get all Public recipes
-// See handlers/recipe.ts for the functional docs for this function
+/**
+ * Get all Public recipes
+ * See handlers/recipe.ts for the functional docs for this function
+ *
+ * @param req - The request object.
+ * @param res - The response object.
+ * @param next - The next function.
+ */
 var getRecipes = function (req, res, next) { return __awaiter(void 0, void 0, void 0, function () {
     var tags, type, time, search, page, limit, offset, recipes, count, totalPages, e_1;
     return __generator(this, function (_a) {
@@ -104,7 +110,14 @@ var getRecipes = function (req, res, next) { return __awaiter(void 0, void 0, vo
     });
 }); };
 exports.getRecipes = getRecipes;
-// Get one recipe based on id
+/**
+ * Retrieves a recipe by its ID if it is public.
+ *
+ * @param req - The request object.
+ * @param res - The response object.
+ * @param next - The next function.
+ * @returns A JSON response containing the recipe data if found, or an error message if not found.
+ */
 var getRecipe = function (req, res, next) { return __awaiter(void 0, void 0, void 0, function () {
     var id, recipe, e_2;
     return __generator(this, function (_a) {
