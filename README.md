@@ -15,7 +15,7 @@ Note: This project is still work in progress and not all features work as intend
 
 This project contains the API's and db interaction for the cookbook project
 
-[https://github.com/Eelkedejong/recipe-shopping-list](Front-end repository)
+Front-end repository: [https://github.com/Eelkedejong/recipe-shopping-list](https://github.com/Eelkedejong/recipe-shopping-list)
 
 
 ## Project structure
@@ -27,11 +27,11 @@ This project contains the API's and db interaction for the cookbook project
 
 ## Tech Stack
 
-- The project is build in *node.js*.
-- The server is build using the *Express* framework.
-- The data is stored in a *ProgresSQL* database.
-- *Prisma* is used to interact with the database.
-- Authentication is done using *bcrypt* and *jsonwebtokens*. 
+- The project is build in **node.js**.
+- The server is build using the **Express** framework.
+- The data is stored in a **ProgresSQL** database.
+- **Prisma** is used to interact with the database.
+- Authentication is done using **bcrypt** and **jsonwebtokens**. 
 
 ## Development
 
