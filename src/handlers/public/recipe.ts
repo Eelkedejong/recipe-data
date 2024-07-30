@@ -1,8 +1,14 @@
 import prisma from "../../db";
 import { Request, Response, NextFunction } from 'express';
 
-// Get all Public recipes
-// See handlers/recipe.ts for the functional docs for this function
+/**
+ * Get all Public recipes
+ * See handlers/recipe.ts for the functional docs for this function
+ *
+ * @param req - The request object.
+ * @param res - The response object.
+ * @param next - The next function.
+ */
 export const getRecipes = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const tags = req.query.tags ? req.query.tags.split(',') : [];
@@ -56,7 +62,14 @@ export const getRecipes = async (req: Request, res: Response, next: NextFunction
   }
 };
 
-// Get one recipe based on id
+/**
+ * Retrieves a recipe by its ID if it is public.
+ *
+ * @param req - The request object.
+ * @param res - The response object.
+ * @param next - The next function.
+ * @returns A JSON response containing the recipe data if found, or an error message if not found.
+ */
 export const getRecipe = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const id = parseInt(req.params.id);

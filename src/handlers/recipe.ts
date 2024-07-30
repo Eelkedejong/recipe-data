@@ -1,22 +1,33 @@
 import prisma from "../db";
 import { Request, Response, NextFunction } from 'express';
 
-// Function to get the user recipes.
-// Incluced option to filter based on tags and type.
-// type is a single value (string)
-// tags is an array of strings
-// time is a single value (number). time is in minutes
-// time works as a maximum value. So if time is 30, recipes with time 30 or less will be returned.
-// page is a single value (number). page is used for pagination. 
-// page query param is used to get the current page.
-// limit is a single value (number). limit is used for how many items should be returned per page
-// Default limit is 9. This can be changed by adding a limit query to the url.
-// offset is calculated based on page and limit.
-// count is the total number of items that match the query.
-// totalPages is calculated based on count and limit.
-// Example: /api/recipe?tags=vegan,healthy&type=breakfast&time=30
-// Example: /api/recipe/?tags=Oven,Italiaans&type=Diner&time=60
-// Example: /api/recipe/?tags=Oven,Italiaans&type=Diner&time=60&page=1&limit=9
+
+/**
+ * Retrieves recipes based on the provided query parameters.
+ * 
+ * Available options:
+ *  - Type is a single value (string)
+ *  - Tags is an array of strings
+ *  - Time is a single value (number). time is in minutes
+ *  - Time works as a maximum value. So if time is 30, recipes with time 30 or less will be returned.
+ *  - Page is a single value (number). page is used for pagination. 
+ *    Page query param is used to get the current page.
+ *  - Limit is a single value (number). limit is used for how many items should be returned per page.
+ *    Default limit is 9. This can be changed by adding a limit query to the url.
+ *  - Offset is calculated based on page and limit.
+ *  - Count is the total number of items that match the query.
+ *  - TotalPages is calculated based on count and limit.
+ * 
+ * Example queries:
+ * - /api/recipe?tags=vegan,healthy&type=breakfast&time=30
+ * - /api/recipe/?tags=Oven,Italiaans&type=Diner&time=60
+ * - /api/recipe/?tags=Oven,Italiaans&type=Diner&time=60&page=1&limit=9
+ * 
+ * 
+ * @param req - The request object.
+ * @param res - The response object.
+ * @param next - The next function to call.
+ */
 export const getRecipes = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const ids = req.query.ids ? req.query.ids.split(',') : []; // Added option to enter multiple ids
@@ -36,7 +47,7 @@ export const getRecipes = async (req: Request, res: Response, next: NextFunction
         recipes: {
           where: {
             AND: [
-              ids.length > 0 ? { id: { in: ids.map((id: string) => parseInt(id)) } } : {}, // Only return recipes with specified ids
+              ids.length > 0 ? { id: { in: ids.map((id: string) => parseInt(id)) } } : {},
               tags.length > 0 ? { tags: { hasEvery: tags } } : {},
               type ? { type: type } : {},
               time > 0 ? { time: { lte: time } } : {},
@@ -49,33 +60,32 @@ export const getRecipes = async (req: Request, res: Response, next: NextFunction
               ] } : {},
             ]
           },
+          orderBy: {
+            id: 'desc'
+          },
           skip: offset,
           take: limit,
         }
       }
     });
 
-    const count = await prisma.recipe.count({
-      where: {
-        AND: [
-          ids.length > 0 ? { id: { in: ids.map((id: string) => parseInt(id)) } } : {}, // Only count recipes with specified ids
-          tags.length > 0 ? { tags: { hasEvery: tags } } : {},
-          type ? { type: type } : {},
-          time > 0 ? { time: { lte: time } } : {}
-        ]
-      }
-    });
+    const totalPages = Math.ceil(user.recipes.length / limit);
 
-    const totalPages = Math.ceil(count / limit);
-
-    res.json({data: user.recipes, count, page, limit, totalPages});
+    res.json({data: user.recipes, count: user.recipes.length, page, limit, totalPages});
   } catch (e) {
     e.type = 'next';
     next(e);
   }
 };
 
-// Get one recipes based on id
+/**
+ * Retrieves a recipe by its ID.
+ *
+ * @param {Request} req - The request object.
+ * @param {Response} res - The response object.
+ * @param {NextFunction} next - The next function.
+ * @returns {Promise<void>} - A promise that resolves when the recipe is retrieved.
+ */
 export const getRecipe = async (req, res, next) => {
   try {
     const id = parseInt(req.params.id)
@@ -94,7 +104,13 @@ export const getRecipe = async (req, res, next) => {
   }
 }
 
-// Create one recipe
+/**
+ * Creates a new recipe.
+ * 
+ * @param req - The request object.
+ * @param res - The response object.
+ * @param next - The next function.
+ */
 export const createRecipe = async (req: Request, res: Response, next: NextFunction) => {
   const url = req.body.name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '')
 
@@ -124,7 +140,13 @@ export const createRecipe = async (req: Request, res: Response, next: NextFuncti
   }
 }
 
-// Update one recipe
+/**
+ * Updates a recipe in the database.
+ * 
+ * @param req - The request object containing the recipe data.
+ * @param res - The response object used to send the updated recipe data.
+ * @param next - The next function to be called in the middleware chain.
+ */
 export const updateRecipe = async (req: Request, res: Response, next: NextFunction) => {
   // convert the name in a url
   let url = req.body.url; // Store the current URL
@@ -164,7 +186,14 @@ export const updateRecipe = async (req: Request, res: Response, next: NextFuncti
   }
 }
  
-// Delete one recipe
+/**
+ * Deletes a recipe.
+ * 
+ * @param req - The request object.
+ * @param res - The response object.
+ * @param next - The next function.
+ * @returns A JSON response containing the deleted recipe data.
+ */
 export const deleteRecipe = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const deletedRecipe = await prisma.recipe.delete({

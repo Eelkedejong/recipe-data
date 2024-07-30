@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { body, oneOf, validationResult } from "express-validator";
-import { handleInputErrors } from '../modules/middleware'
+import { handleInputErrors } from '../modules/errors'
 import { getRecipes, getRecipe, updateRecipe, createRecipe, deleteRecipe } from '../handlers/recipe';
 import { createShoppingList, deleteShoppingList, getShoppingList, updateShoppingListRecipes, updateShoppingListItems, removeRecipeFromShoppingList } from '../handlers/shopping-list';
 import { getRecipeTypes, getRecipeTags } from '../handlers/filters';
@@ -8,7 +8,6 @@ import { getRecipeTypes, getRecipeTags } from '../handlers/filters';
 const router = Router()
 
 // Recipe routes
-
 router.get('/recipe', getRecipes)
 
 router.get('/recipe/:id', getRecipe)
@@ -50,7 +49,6 @@ router.get('/recipe-types', getRecipeTypes)
 router.get('/recipe-tags', getRecipeTags)
 
 // Shopping list routes
-
 router.get('/list', getShoppingList)
 
 router.post('/list',

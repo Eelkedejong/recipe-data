@@ -1,7 +1,13 @@
 import prisma from "../db";
 import { Request, Response, NextFunction } from 'express';
 
-// Create Shopping list. This is called when a new user is created.
+/**
+ * Create Shopping list. This is called when a new user is created.
+ * 
+ * @param req - The request object.
+ * @param res - The response object.
+ * @param next - The next function.
+ */
 export const createShoppingList = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const list = await prisma.shoppingList.create({
@@ -94,7 +100,14 @@ export const updateShoppingListRecipes = async (req: Request, res: Response, nex
   }
 };
 
-
+/**
+ * Removes recipes from the shopping list.
+ * 
+ * @param req - The request object.
+ * @param res - The response object.
+ * @param next - The next function.
+ * @returns A JSON response with the updated shopping list.
+ */
 export const removeRecipeFromShoppingList = async (req: Request, res: Response, next: NextFunction) => {
   try {
     // Get the existing shopping list
@@ -129,7 +142,13 @@ export const removeRecipeFromShoppingList = async (req: Request, res: Response, 
   }
 }
 
-  // Get the list of ingredients from the request body and save it in the items of the shopping list
+/**
+ * Updates the items and extra items in the shopping list for the authenticated user.
+ * 
+ * @param req - The request object containing the user ID and the updated items.
+ * @param res - The response object to send the updated shopping list.
+ * @param next - The next function to handle errors.
+ */
 export const updateShoppingListItems = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const updatedList = await prisma.shoppingList.update({
@@ -210,9 +229,14 @@ export const updateIngredientByRecipeShoppingList = async (req: Request, res: Re
     });
 }
 
-
- 
-// Delete the Shopping list. Should be called when a user is deleted.
+/**
+ * Delete the Shopping list. Should be called when a user is deleted.
+ * 
+ * @param req - The Express request object.
+ * @param res - The Express response object.
+ * @param next - The Express next function.
+ * @returns A JSON response containing the deleted shopping list data.
+ */
 export const deleteShoppingList = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const deletedList = await prisma.shoppingList.delete({

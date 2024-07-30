@@ -2,6 +2,15 @@ import prisma from "../db"
 import { hashPassword, createJWT, comparePasswords } from "../modules/auth"
 import { error } from "console"
 
+/**
+ * Creates a new user with the provided username, email, and password.
+ * 
+ * @param req - The request object containing the user data.
+ * @param res - The response object used to send the server response.
+ * @param next - The next function used to pass the error to the error handling middleware.
+ * @returns A JSON response containing a JWT token and the username of the created user.
+ * @throws If there is an error during the user creation process.
+ */
 export const createNewUser = async (req, res, next) => {
   try {
     // As we don't want to store passwords as plain text, we use the hash password function we made.
@@ -55,6 +64,14 @@ export const createNewUser = async (req, res, next) => {
     // Create a token from our auth module
     const token = createJWT(user)
 
+    // Get the user id and create a shopping list for the user
+    // This is done so we can add recipes to the shopping list later on.
+    await prisma.shoppingList.create({
+      data: {
+        belongsToId: user.id
+      }
+    })
+
     // Fill the reponse with the JWT (Jason web token) 
     // This token containts a user id and username (see auth.ts createJWT function)
     res.json({ token: token, username: user.username })
@@ -64,6 +81,14 @@ export const createNewUser = async (req, res, next) => {
   }
 }
 
+/**
+ * Sign in a user.
+ * 
+ * @param {Request} req - The request object.
+ * @param {Response} res - The response object.
+ * @param {NextFunction} next - The next function.
+ * @returns {Promise<void>} - A promise that resolves when the sign-in process is complete.
+ */
 export const signIn = async (req, res, next) => {
   console.log(req.body)
   const { body } = req;

@@ -4,6 +4,13 @@ import prisma from "../db"
 import { hashPassword, createJWTWithExpiration } from "../modules/auth"
 import { error } from "console"
 
+/**
+ * Handles the password reset request.
+ * 
+ * @param req - The request object.
+ * @param res - The response object.
+ * @param next - The next middleware function.
+ */
 export const passwordResetRequest = async (req, res, next) => {
   try {
     // Check if the user exists based on email in the body of the api call
@@ -60,9 +67,14 @@ export const passwordResetRequest = async (req, res, next) => {
   }
 }
 
+/**
+ * Updates the password for a user.
+ * @param {Request} req - The request object.
+ * @param {Response} res - The response object.
+ * @param {NextFunction} next - The next function.
+ * @returns {Promise<void>} - A promise that resolves when the password is updated.
+ */
 export const updatePassword = async (req, res, next) => {
-console.log('password', req.body.password)
-
   try {
     const user = await prisma.user.findUnique({
       where: {

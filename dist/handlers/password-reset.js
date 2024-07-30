@@ -44,6 +44,13 @@ var nodemailer_1 = __importDefault(require("nodemailer"));
 var jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 var db_1 = __importDefault(require("../db"));
 var auth_1 = require("../modules/auth");
+/**
+ * Handles the password reset request.
+ *
+ * @param req - The request object.
+ * @param res - The response object.
+ * @param next - The next middleware function.
+ */
 var passwordResetRequest = function (req, res, next) { return __awaiter(void 0, void 0, void 0, function () {
     var user, token, frontendUrl, subject, resetLink, transporter, error_1, e_1;
     return __generator(this, function (_a) {
@@ -109,21 +116,25 @@ var passwordResetRequest = function (req, res, next) { return __awaiter(void 0, 
     });
 }); };
 exports.passwordResetRequest = passwordResetRequest;
+/**
+ * Updates the password for a user.
+ * @param {Request} req - The request object.
+ * @param {Response} res - The response object.
+ * @param {NextFunction} next - The next function.
+ * @returns {Promise<void>} - A promise that resolves when the password is updated.
+ */
 var updatePassword = function (req, res, next) { return __awaiter(void 0, void 0, void 0, function () {
     var user, payload, hash, e_2;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
-                console.log('password', req.body.password);
-                _a.label = 1;
-            case 1:
-                _a.trys.push([1, 5, , 6]);
+                _a.trys.push([0, 4, , 5]);
                 return [4 /*yield*/, db_1.default.user.findUnique({
                         where: {
                             id: req.params.id
                         }
                     })];
-            case 2:
+            case 1:
                 user = _a.sent();
                 if (!user) {
                     res.status(401);
@@ -134,7 +145,7 @@ var updatePassword = function (req, res, next) { return __awaiter(void 0, void 0
                 return [4 /*yield*/, (0, auth_1.hashPassword)(req.body.password)
                     // Update the user with the new password
                 ];
-            case 3:
+            case 2:
                 hash = _a.sent();
                 // Update the user with the new password
                 return [4 /*yield*/, db_1.default.user.update({
@@ -147,18 +158,18 @@ var updatePassword = function (req, res, next) { return __awaiter(void 0, void 0
                     })
                     // Send the new password to the user.
                 ];
-            case 4:
+            case 3:
                 // Update the user with the new password
                 _a.sent();
                 // Send the new password to the user.
                 res.json({ message: "password succesfully updated" });
-                return [3 /*break*/, 6];
-            case 5:
+                return [3 /*break*/, 5];
+            case 4:
                 e_2 = _a.sent();
                 e_2.type = 'next';
                 next(e_2);
-                return [3 /*break*/, 6];
-            case 6: return [2 /*return*/];
+                return [3 /*break*/, 5];
+            case 5: return [2 /*return*/];
         }
     });
 }); };
