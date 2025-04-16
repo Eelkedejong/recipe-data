@@ -6,10 +6,13 @@ import { Request, Response, NextFunction } from 'express';
  * Retrieves recipes based on the provided query parameters.
  * 
  * Available options:
- *  - Type is a single value (string)
+ *  - TypeOfMeal is an array of strings
+ *  - TypeOfDish is an array of strings
+ *  - Cuisine is an array of strings
  *  - Tags is an array of strings
  *  - Time is a single value (number). time is in minutes
  *  - Time works as a maximum value. So if time is 30, recipes with time 30 or less will be returned.
+ *  - IsChildFriendly and IsVegetarian are boolean filters
  *  - Page is a single value (number). page is used for pagination. 
  *    Page query param is used to get the current page.
  *  - Limit is a single value (number). limit is used for how many items should be returned per page.
@@ -19,9 +22,9 @@ import { Request, Response, NextFunction } from 'express';
  *  - TotalPages is calculated based on count and limit.
  * 
  * Example queries:
- * - /api/recipe?tags=vegan,healthy&type=breakfast&time=30
- * - /api/recipe/?tags=Oven,Italiaans&type=Diner&time=60
- * - /api/recipe/?tags=Oven,Italiaans&type=Diner&time=60&page=1&limit=9
+ * - /api/recipe?tags=vegan,healthy&typeOfMeal=breakfast&time=30
+ * - /api/recipe/?tags=Oven,Italiaans&typeOfMeal=Diner&time=60&isVegetarian=true
+ * - /api/recipe/?cuisine=Italian,French&typeOfDish=pasta,main&time=60&page=1&limit=9
  * 
  * 
  * @param req - The request object.
@@ -30,48 +33,95 @@ import { Request, Response, NextFunction } from 'express';
  */
 export const getRecipes = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const ids = req.query.ids ? req.query.ids.split(',') : []; // Added option to enter multiple ids
-    const tags = req.query.tags ? req.query.tags.split(',') : [];
-    const type = req.query.type;
-    const time = req.query.time ? parseInt(req.query.time) : 0;
-    const search = req.query.search ? req.query.search.split(',') : [];
-    const page = req.query.page ? parseInt(req.query.page) : 1;
-    const limit = req.query.limit ? parseInt(req.query.limit) : 12;
+    const ids = req.query.ids ? req.query.ids.toString().split(',') : []; 
+    const tags = req.query.tags ? req.query.tags.toString().split(',') : [];
+    const typeOfMeal = req.query.typeOfMeal ? req.query.typeOfMeal.toString().split(',') : [];
+    const typeOfDish = req.query.typeOfDish ? req.query.typeOfDish.toString().split(',') : [];
+    const cuisine = req.query.cuisine ? req.query.cuisine.toString().split(',') : [];
+    const time = req.query.time ? parseInt(req.query.time as string) : 0;
+    const isChildFriendly = req.query.isChildFriendly ? req.query.isChildFriendly === 'true' : undefined;
+    const isVegetarian = req.query.isVegetarian ? req.query.isVegetarian === 'true' : undefined;
+    const search = req.query.search ? (req.query.search as string).split(',') : [];
+    const page = req.query.page ? parseInt(req.query.page as string) : 1;
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : 12;
     const offset = (page - 1) * limit;
 
-    const user = await prisma.user.findUnique({
-      where: {
-        id: req.user.id
-      },
-      include: {
-        recipes: {
-          where: {
-            AND: [
-              ids.length > 0 ? { id: { in: ids.map((id: string) => parseInt(id)) } } : {},
-              tags.length > 0 ? { tags: { hasEvery: tags } } : {},
-              type ? { type: type } : {},
-              time > 0 ? { time: { lte: time } } : {},
-              search.length > 0 ? { OR: [
-                { name: { contains: search[0], mode: 'insensitive' } },
-                { description: { contains: search[0], mode: 'insensitive' } },
-                // Search for both the lowercase and uppercase version of the tag.
-                { tags: { hasSome: search.map((tag: string) => tag.toLowerCase()) } },
-                { tags: { hasSome: search.map((tag: string) => tag.charAt(0).toUpperCase() + tag.slice(1)) } }
-              ] } : {},
-            ]
-          },
-          orderBy: {
-            id: 'desc'
-          },
-          skip: offset,
-          take: limit,
-        }
-      }
+    // Build up conditions for the where clause
+    const conditions = [];
+    
+    if (ids.length > 0) {
+      conditions.push({ id: { in: ids.map(id => parseInt(id)) } });
+    }
+    
+    if (tags.length > 0) {
+      conditions.push({ tags: { hasEvery: tags } });
+    }
+    
+    if (typeOfMeal.length > 0) {
+      conditions.push({ typeOfMeal: { hasSome: typeOfMeal } });
+    }
+    
+    if (typeOfDish.length > 0) {
+      conditions.push({ typeOfDish: { hasSome: typeOfDish } });
+    }
+    
+    if (cuisine.length > 0) {
+      conditions.push({ cuisine: { hasSome: cuisine } });
+    }
+    
+    if (time > 0) {
+      conditions.push({ time: { lte: time } });
+    }
+    
+    if (isChildFriendly !== undefined) {
+      conditions.push({ isChildFriendly });
+    }
+    
+    if (isVegetarian !== undefined) {
+      conditions.push({ isVegetarian });
+    }
+    
+    if (search.length > 0) {
+      conditions.push({
+        OR: [
+          { name: { contains: search[0], mode: 'insensitive' } },
+          { description: { contains: search[0], mode: 'insensitive' } },
+          { tags: { hasSome: search.map(tag => tag.toLowerCase()) } },
+          { tags: { hasSome: search.map(tag => tag.charAt(0).toUpperCase() + tag.slice(1)) } }
+        ]
+      });
+    }
+    
+    // Always add the user ID condition
+    conditions.push({ belongsToId: req.user.id });
+
+    // Create a proper where clause with the conditions
+    const whereInput = conditions.length > 0 ? { AND: conditions } : {};
+
+    // First, get the total count of recipes matching the filters
+    const totalCount = await prisma.recipe.count({
+      where: whereInput
     });
 
-    const totalPages = Math.ceil(user.recipes.length / limit);
+    // Then get the paginated recipes
+    const recipes = await prisma.recipe.findMany({
+      where: whereInput,
+      orderBy: {
+        id: 'desc'
+      },
+      skip: offset,
+      take: limit
+    });
 
-    res.json({data: user.recipes, count: user.recipes.length, page, limit, totalPages});
+    const totalPages = Math.ceil(totalCount / limit);
+
+    res.json({
+      data: recipes, 
+      count: totalCount, 
+      page, 
+      limit, 
+      totalPages
+    });
   } catch (e) {
     e.type = 'next';
     next(e);
@@ -124,10 +174,13 @@ export const createRecipe = async (req: Request, res: Response, next: NextFuncti
         persons: req.body.persons,
         tags: req.body.tags,
         time: req.body.time,
-        difficulty: req.body.difficulty,
-        type: req.body.type,
+        typeOfMeal: req.body.typeOfMeal || [],
+        typeOfDish: req.body.typeOfDish || [],
+        cuisine: req.body.cuisine || [],
+        isChildFriendly: req.body.isChildFriendly || false,
+        isVegetarian: req.body.isVegetarian || false,
         ingredients: req.body.ingredients,
-        isPublic: req.body.isPublic,
+        isPublic: req.body.isPublic || false,
         steps: req.body.steps,
         belongsToId: req.user.id
       }
@@ -171,8 +224,11 @@ export const updateRecipe = async (req: Request, res: Response, next: NextFuncti
         persons: req.body.persons,
         tags: req.body.tags,
         time: req.body.time,
-        difficulty: req.body.difficulty,
-        type: req.body.type,
+        typeOfMeal: req.body.typeOfMeal,
+        typeOfDish: req.body.typeOfDish,
+        cuisine: req.body.cuisine,
+        isChildFriendly: req.body.isChildFriendly,
+        isVegetarian: req.body.isVegetarian,
         ingredients: req.body.ingredients,
         isPublic: req.body.isPublic,
         steps: req.body.steps,
@@ -211,6 +267,3 @@ export const deleteRecipe = async (req: Request, res: Response, next: NextFuncti
     next(e)
   }
 }
-
-
-

@@ -2,9 +2,8 @@ import prisma from "../db";
 import { Request, Response, NextFunction } from 'express';
 
 /**
- * Create a function that returns all possible types of all recipes from the user
- * This function is used to generate the type filter in the frontend
- * The function returns an array of strings
+ * Returns all unique meal types from the user's recipes
+ * This function is used to generate the meal type filter in the frontend
  * 
  * @param req - The request object.
  * @param res - The response object.
@@ -12,32 +11,86 @@ import { Request, Response, NextFunction } from 'express';
  */
 export const getRecipeTypes = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const types = await prisma.recipe.findMany({
+    const recipes = await prisma.recipe.findMany({
       where: {
-        belongsToId: req.user.id,
-        type: {
-          not: null
-        }
+        belongsToId: req.user.id
       },
       select: {
-        type: true
+        typeOfMeal: true
       }
-    })
+    });
 
-    // Create a new array with only the unique types
-    const uniqueTypes = Array.from(new Set(types.map(item => item.type)))
+    // Flatten the array of arrays and get unique values
+    const uniqueTypes = Array.from(new Set(recipes.flatMap(recipe => recipe.typeOfMeal)));
 
-    res.json({data: uniqueTypes})
+    res.json({data: uniqueTypes});
   } catch (e) {
-    e.type = 'next'
-    next(e)
+    e.type = 'next';
+    next(e);
   }
-}
+};
 
 /**
- * Create a function that returns all possible tags of all recipes from the user
+ * Returns all unique dish types from the user's recipes
+ * This function is used to generate the dish type filter in the frontend
+ * 
+ * @param req - The request object.
+ * @param res - The response object.
+ * @param next - The next function.
+ */
+export const getRecipeDishTypes = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const recipes = await prisma.recipe.findMany({
+      where: {
+        belongsToId: req.user.id
+      },
+      select: {
+        typeOfDish: true
+      }
+    });
+
+    // Flatten the array of arrays and get unique values
+    const uniqueDishTypes = Array.from(new Set(recipes.flatMap(recipe => recipe.typeOfDish)));
+
+    res.json({data: uniqueDishTypes});
+  } catch (e) {
+    e.type = 'next';
+    next(e);
+  }
+};
+
+/**
+ * Returns all unique cuisines from the user's recipes
+ * This function is used to generate the cuisine filter in the frontend
+ * 
+ * @param req - The request object.
+ * @param res - The response object.
+ * @param next - The next function.
+ */
+export const getRecipeCuisines = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const recipes = await prisma.recipe.findMany({
+      where: {
+        belongsToId: req.user.id
+      },
+      select: {
+        cuisine: true
+      }
+    });
+
+    // Flatten the array of arrays and get unique values
+    const uniqueCuisines = Array.from(new Set(recipes.flatMap(recipe => recipe.cuisine)));
+
+    res.json({data: uniqueCuisines});
+  } catch (e) {
+    e.type = 'next';
+    next(e);
+  }
+};
+
+/**
+ * Returns all unique tags from the user's recipes
  * This function is used to generate the tag filter in the frontend
- * The function returns an array of strings
  * 
  * @param req - The request object.
  * @param res - The response object.
@@ -52,14 +105,14 @@ export const getRecipeTags = async (req: Request, res: Response, next: NextFunct
       select: {
         tags: true
       }
-    })
+    });
 
     // Create a new array with only the unique tags
-    const uniqueTags = Array.from(new Set(tags.map(item => item.tags).flat()))
+    const uniqueTags = Array.from(new Set(tags.flatMap(item => item.tags)));
 
-    res.json({data: uniqueTags})
+    res.json({data: uniqueTags});
   } catch (e) {
-    e.type = 'next'
-    next(e)
+    e.type = 'next';
+    next(e);
   }
-}
+};

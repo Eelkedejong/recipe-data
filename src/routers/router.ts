@@ -3,7 +3,7 @@ import { body, oneOf, validationResult } from "express-validator";
 import { handleInputErrors } from '../modules/errors'
 import { getRecipes, getRecipe, updateRecipe, createRecipe, deleteRecipe } from '../handlers/recipe';
 import { createShoppingList, deleteShoppingList, getShoppingList, updateShoppingListRecipes, updateShoppingListItems, removeRecipeFromShoppingList } from '../handlers/shopping-list';
-import { getRecipeTypes, getRecipeTags } from '../handlers/filters';
+import { getRecipeTypes, getRecipeTags, getRecipeDishTypes, getRecipeCuisines } from '../handlers/filters';
 
 const router = Router()
 
@@ -19,8 +19,11 @@ router.post('/recipe',
   body('persons').optional(),
   body('tags').optional(),
   body('time').optional(),
-  body('difficulty').optional(),
-  body('type').optional(),
+  body('typeOfMeal').optional(),
+  body('typeOfDish').optional(),
+  body('cuisine').optional(),
+  body('isChildFriendly').optional().isBoolean(),
+  body('isVegetarian').optional().isBoolean(),
   body('ingredients').optional(),
   body('steps').optional(),
   handleInputErrors, 
@@ -34,8 +37,11 @@ router.put('/recipe/:id',
   body('persons').optional(),
   body('tags').optional(),
   body('time').optional(),
-  body('difficulty').optional(),
-  body('type').optional(),
+  body('typeOfMeal').optional(),
+  body('typeOfDish').optional(),
+  body('cuisine').optional(),
+  body('isChildFriendly').optional().isBoolean(),
+  body('isVegetarian').optional().isBoolean(),
   body('ingredients').optional(),
   body('steps').optional(),
   handleInputErrors, 
@@ -45,8 +51,10 @@ router.put('/recipe/:id',
 router.delete('/recipe/:id', deleteRecipe)
 
 // Recipe types
-router.get('/recipe-types', getRecipeTypes)
 router.get('/recipe-tags', getRecipeTags)
+router.get('/recipe-types', getRecipeTypes)
+router.get('/recipe-dish-types', getRecipeDishTypes)
+router.get('/recipe-cuisines', getRecipeCuisines)
 
 // Shopping list routes
 router.get('/list', getShoppingList)

@@ -21,22 +21,25 @@ model User {
 }
 
 model Recipe {
-  id          Int      @id @default(autoincrement())
-  createdAt   DateTime @default(now())
-  name        String
-  url         String?
-  description String?
-  image       String?
-  persons     Int
-  tags        String[]
-  time        Int?
-  difficulty  String?
-  type        String?
-  ingredients Json
-  steps       String[]
-  isPublic    Boolean  @default(false)
-  belongsToId String
-  belongsTo   User     @relation(fields: [belongsToId], references: [id])
+  id             Int      @id @default(autoincrement())
+  createdAt      DateTime @default(now())
+  name           String
+  url            String?
+  description    String?
+  image          String?
+  persons        Int
+  tags           String[]
+  time           Int?
+  typeOfMeal     String[]
+  typeOfDish     String[]
+  cuisine        String[]  
+  ingredients    Json
+  steps          String[]
+  isPublic       Boolean  @default(false)
+  isChildFriendly Boolean  @default(false)
+  isVegetarian   Boolean  @default(false)
+  belongsToId    String
+  belongsTo      User     @relation(fields: [belongsToId], references: [id])
 
   @@unique([id, belongsToId])
 }
