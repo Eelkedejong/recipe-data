@@ -2,10 +2,13 @@
  * Retrieves recipes based on the provided query parameters.
  *
  * Available options:
- *  - Type is a single value (string)
+ *  - TypeOfMeal is an array of strings
+ *  - TypeOfDish is an array of strings
+ *  - Cuisine is an array of strings
  *  - Tags is an array of strings
  *  - Time is a single value (number). time is in minutes
  *  - Time works as a maximum value. So if time is 30, recipes with time 30 or less will be returned.
+ *  - IsChildFriendly and IsVegetarian are boolean filters
  *  - Page is a single value (number). page is used for pagination.
  *    Page query param is used to get the current page.
  *  - Limit is a single value (number). limit is used for how many items should be returned per page.
@@ -15,9 +18,9 @@
  *  - TotalPages is calculated based on count and limit.
  *
  * Example queries:
- * - /api/recipe?tags=vegan,healthy&type=breakfast&time=30
- * - /api/recipe/?tags=Oven,Italiaans&type=Diner&time=60
- * - /api/recipe/?tags=Oven,Italiaans&type=Diner&time=60&page=1&limit=9
+ * - /api/recipe?tags=vegan,healthy&typeOfMeal=breakfast&time=30
+ * - /api/recipe/?tags=Oven,Italiaans&typeOfMeal=Diner&time=60&isVegetarian=true
+ * - /api/recipe/?cuisine=Italian,French&typeOfDish=pasta,main&time=60&page=1&limit=9
  *
  *
  * @param req - The request object.

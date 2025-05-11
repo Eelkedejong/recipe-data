@@ -1,4 +1,15 @@
 "use strict";
+var __assign = (this && this.__assign) || function () {
+    __assign = Object.assign || function(t) {
+        for (var s, i = 1, n = arguments.length; i < n; i++) {
+            s = arguments[i];
+            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+                t[p] = s[p];
+        }
+        return t;
+    };
+    return __assign.apply(this, arguments);
+};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -50,50 +61,66 @@ var db_1 = __importDefault(require("../../db"));
  * @param next - The next function.
  */
 var getRecipes = function (req, res, next) { return __awaiter(void 0, void 0, void 0, function () {
-    var tags, type, time, search, page, limit, offset, recipes, count, totalPages, e_1;
+    var tags, typeOfMeal, typeOfDish, cuisine, time, isChildFriendly, isVegetarian, search, page, limit, offset, whereClause, recipes, countWhereClause, count, totalPages, e_1;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
                 _a.trys.push([0, 3, , 4]);
-                tags = req.query.tags ? req.query.tags.split(',') : [];
-                type = req.query.type;
+                tags = req.query.tags ? req.query.tags.toString().split(',') : [];
+                typeOfMeal = req.query.typeOfMeal ? req.query.typeOfMeal.toString().split(',') : [];
+                typeOfDish = req.query.typeOfDish ? req.query.typeOfDish.toString().split(',') : [];
+                cuisine = req.query.cuisine ? req.query.cuisine.toString().split(',') : [];
                 time = req.query.time ? parseInt(req.query.time) : 0;
+                isChildFriendly = req.query.isChildFriendly === 'true';
+                isVegetarian = req.query.isVegetarian === 'true';
                 search = req.query.search ? req.query.search.split(',') : [];
                 page = req.query.page ? parseInt(req.query.page) : 1;
                 limit = req.query.limit ? parseInt(req.query.limit) : 12;
                 offset = (page - 1) * limit;
+                whereClause = {
+                    isPublic: true, // Base condition - always filter for public recipes
+                };
+                // Add optional conditions only if they're provided
+                if (tags.length > 0) {
+                    whereClause.tags = { hasEvery: tags };
+                }
+                if (typeOfMeal.length > 0) {
+                    whereClause.typeOfMeal = { hasSome: typeOfMeal };
+                }
+                if (typeOfDish.length > 0) {
+                    whereClause.typeOfDish = { hasSome: typeOfDish };
+                }
+                if (cuisine.length > 0) {
+                    whereClause.cuisine = { hasSome: cuisine };
+                }
+                if (time > 0) {
+                    whereClause.time = { lte: time };
+                }
+                if (req.query.isChildFriendly !== undefined) {
+                    whereClause.isChildFriendly = isChildFriendly;
+                }
+                if (req.query.isVegetarian !== undefined) {
+                    whereClause.isVegetarian = isVegetarian;
+                }
+                if (search.length > 0) {
+                    whereClause.OR = [
+                        { name: { contains: search[0], mode: 'insensitive' } },
+                        { description: { contains: search[0], mode: 'insensitive' } },
+                        { tags: { hasSome: search.map(function (tag) { return tag.toLowerCase(); }) } },
+                        { tags: { hasSome: search.map(function (tag) { return tag.charAt(0).toUpperCase() + tag.slice(1); }) } }
+                    ];
+                }
                 return [4 /*yield*/, db_1.default.recipe.findMany({
-                        where: {
-                            AND: [
-                                { isPublic: true },
-                                tags.length > 0 ? { tags: { hasEvery: tags } } : {},
-                                type ? { type: type } : {},
-                                time > 0 ? { time: { lte: time } } : {},
-                                search.length > 0 ? {
-                                    OR: [
-                                        { name: { contains: search[0], mode: 'insensitive' } },
-                                        { description: { contains: search[0], mode: 'insensitive' } },
-                                        // Search for both the lowercase and uppercase version of the tag.
-                                        { tags: { hasSome: search.map(function (tag) { return tag.toLowerCase(); }) } },
-                                        { tags: { hasSome: search.map(function (tag) { return tag.charAt(0).toUpperCase() + tag.slice(1); }) } }
-                                    ]
-                                } : {},
-                            ]
-                        },
+                        where: whereClause,
                         skip: offset,
                         take: limit,
                     })];
             case 1:
                 recipes = _a.sent();
+                countWhereClause = __assign({}, whereClause);
+                delete countWhereClause.OR; // Remove search condition for accurate pagination
                 return [4 /*yield*/, db_1.default.recipe.count({
-                        where: {
-                            AND: [
-                                { isPublic: true },
-                                tags.length > 0 ? { tags: { hasEvery: tags } } : {},
-                                type ? { type: type } : {},
-                                time > 0 ? { time: { lte: time } } : {}
-                            ]
-                        }
+                        where: countWhereClause
                     })];
             case 2:
                 count = _a.sent();

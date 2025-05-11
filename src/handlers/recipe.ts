@@ -113,12 +113,7 @@ export const getRecipes = async (req: Request, res: Response, next: NextFunction
       take: limit
     });
 
-    console.log('totalCount', totalCount)
-    console.log('limit', limit)
-
     const totalPages = Math.ceil(totalCount / limit);
-
-    console.log('totalPages', totalPages)
 
     res.json({
       data: recipes, 

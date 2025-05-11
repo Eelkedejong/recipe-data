@@ -45,10 +45,13 @@ var db_1 = __importDefault(require("../db"));
  * Retrieves recipes based on the provided query parameters.
  *
  * Available options:
- *  - Type is a single value (string)
+ *  - TypeOfMeal is an array of strings
+ *  - TypeOfDish is an array of strings
+ *  - Cuisine is an array of strings
  *  - Tags is an array of strings
  *  - Time is a single value (number). time is in minutes
  *  - Time works as a maximum value. So if time is 30, recipes with time 30 or less will be returned.
+ *  - IsChildFriendly and IsVegetarian are boolean filters
  *  - Page is a single value (number). page is used for pagination.
  *    Page query param is used to get the current page.
  *  - Limit is a single value (number). limit is used for how many items should be returned per page.
@@ -58,9 +61,9 @@ var db_1 = __importDefault(require("../db"));
  *  - TotalPages is calculated based on count and limit.
  *
  * Example queries:
- * - /api/recipe?tags=vegan,healthy&type=breakfast&time=30
- * - /api/recipe/?tags=Oven,Italiaans&type=Diner&time=60
- * - /api/recipe/?tags=Oven,Italiaans&type=Diner&time=60&page=1&limit=9
+ * - /api/recipe?tags=vegan,healthy&typeOfMeal=breakfast&time=30
+ * - /api/recipe/?tags=Oven,Italiaans&typeOfMeal=Diner&time=60&isVegetarian=true
+ * - /api/recipe/?cuisine=Italian,French&typeOfDish=pasta,main&time=60&page=1&limit=9
  *
  *
  * @param req - The request object.
@@ -68,59 +71,91 @@ var db_1 = __importDefault(require("../db"));
  * @param next - The next function to call.
  */
 var getRecipes = function (req, res, next) { return __awaiter(void 0, void 0, void 0, function () {
-    var ids, tags, type, time, search, page, limit, offset, user, totalPages, e_1;
+    var ids, tags, typeOfMeal, typeOfDish, cuisine, time, isChildFriendly, isVegetarian, search, page, limit, offset, conditions, whereInput, totalCount, recipes, totalPages, e_1;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
-                _a.trys.push([0, 2, , 3]);
-                ids = req.query.ids ? req.query.ids.split(',') : [];
-                tags = req.query.tags ? req.query.tags.split(',') : [];
-                type = req.query.type;
+                _a.trys.push([0, 3, , 4]);
+                ids = req.query.ids ? req.query.ids.toString().split(',') : [];
+                tags = req.query.tags ? req.query.tags.toString().split(',') : [];
+                typeOfMeal = req.query.typeOfMeal ? req.query.typeOfMeal.toString().split(',') : [];
+                typeOfDish = req.query.typeOfDish ? req.query.typeOfDish.toString().split(',') : [];
+                cuisine = req.query.cuisine ? req.query.cuisine.toString().split(',') : [];
                 time = req.query.time ? parseInt(req.query.time) : 0;
+                isChildFriendly = req.query.isChildFriendly ? req.query.isChildFriendly === 'true' : undefined;
+                isVegetarian = req.query.isVegetarian ? req.query.isVegetarian === 'true' : undefined;
                 search = req.query.search ? req.query.search.split(',') : [];
                 page = req.query.page ? parseInt(req.query.page) : 1;
                 limit = req.query.limit ? parseInt(req.query.limit) : 12;
                 offset = (page - 1) * limit;
-                return [4 /*yield*/, db_1.default.user.findUnique({
-                        where: {
-                            id: req.user.id
-                        },
-                        include: {
-                            recipes: {
-                                where: {
-                                    AND: [
-                                        ids.length > 0 ? { id: { in: ids.map(function (id) { return parseInt(id); }) } } : {},
-                                        tags.length > 0 ? { tags: { hasEvery: tags } } : {},
-                                        type ? { type: type } : {},
-                                        time > 0 ? { time: { lte: time } } : {},
-                                        search.length > 0 ? { OR: [
-                                                { name: { contains: search[0], mode: 'insensitive' } },
-                                                { description: { contains: search[0], mode: 'insensitive' } },
-                                                // Search for both the lowercase and uppercase version of the tag.
-                                                { tags: { hasSome: search.map(function (tag) { return tag.toLowerCase(); }) } },
-                                                { tags: { hasSome: search.map(function (tag) { return tag.charAt(0).toUpperCase() + tag.slice(1); }) } }
-                                            ] } : {},
-                                    ]
-                                },
-                                orderBy: {
-                                    id: 'desc'
-                                },
-                                skip: offset,
-                                take: limit,
-                            }
-                        }
+                conditions = [];
+                if (ids.length > 0) {
+                    conditions.push({ id: { in: ids.map(function (id) { return parseInt(id); }) } });
+                }
+                if (tags.length > 0) {
+                    conditions.push({ tags: { hasEvery: tags } });
+                }
+                if (typeOfMeal.length > 0) {
+                    conditions.push({ typeOfMeal: { hasSome: typeOfMeal } });
+                }
+                if (typeOfDish.length > 0) {
+                    conditions.push({ typeOfDish: { hasSome: typeOfDish } });
+                }
+                if (cuisine.length > 0) {
+                    conditions.push({ cuisine: { hasSome: cuisine } });
+                }
+                if (time > 0) {
+                    conditions.push({ time: { lte: time } });
+                }
+                if (isChildFriendly !== undefined) {
+                    conditions.push({ isChildFriendly: isChildFriendly });
+                }
+                if (isVegetarian !== undefined) {
+                    conditions.push({ isVegetarian: isVegetarian });
+                }
+                if (search.length > 0) {
+                    conditions.push({
+                        OR: [
+                            { name: { contains: search[0], mode: 'insensitive' } },
+                            { description: { contains: search[0], mode: 'insensitive' } },
+                            { tags: { hasSome: search.map(function (tag) { return tag.toLowerCase(); }) } },
+                            { tags: { hasSome: search.map(function (tag) { return tag.charAt(0).toUpperCase() + tag.slice(1); }) } }
+                        ]
+                    });
+                }
+                // Always add the user ID condition
+                conditions.push({ belongsToId: req.user.id });
+                whereInput = conditions.length > 0 ? { AND: conditions } : {};
+                return [4 /*yield*/, db_1.default.recipe.count({
+                        where: whereInput
                     })];
             case 1:
-                user = _a.sent();
-                totalPages = Math.ceil(user.recipes.length / limit);
-                res.json({ data: user.recipes, count: user.recipes.length, page: page, limit: limit, totalPages: totalPages });
-                return [3 /*break*/, 3];
+                totalCount = _a.sent();
+                return [4 /*yield*/, db_1.default.recipe.findMany({
+                        where: whereInput,
+                        orderBy: {
+                            id: 'desc'
+                        },
+                        skip: offset,
+                        take: limit
+                    })];
             case 2:
+                recipes = _a.sent();
+                totalPages = Math.ceil(totalCount / limit);
+                res.json({
+                    data: recipes,
+                    count: totalCount,
+                    page: page,
+                    limit: limit,
+                    totalPages: totalPages
+                });
+                return [3 /*break*/, 4];
+            case 3:
                 e_1 = _a.sent();
                 e_1.type = 'next';
                 next(e_1);
-                return [3 /*break*/, 3];
-            case 3: return [2 /*return*/];
+                return [3 /*break*/, 4];
+            case 4: return [2 /*return*/];
         }
     });
 }); };
@@ -185,9 +220,13 @@ var createRecipe = function (req, res, next) { return __awaiter(void 0, void 0, 
                             persons: req.body.persons,
                             tags: req.body.tags,
                             time: req.body.time,
-                            type: req.body.type,
+                            typeOfMeal: req.body.typeOfMeal || [],
+                            typeOfDish: req.body.typeOfDish || [],
+                            cuisine: req.body.cuisine || [],
+                            isChildFriendly: req.body.isChildFriendly || false,
+                            isVegetarian: req.body.isVegetarian || false,
                             ingredients: req.body.ingredients,
-                            isPublic: req.body.isPublic,
+                            isPublic: req.body.isPublic || false,
                             steps: req.body.steps,
                             belongsToId: req.user.id
                         }
@@ -240,8 +279,11 @@ var updateRecipe = function (req, res, next) { return __awaiter(void 0, void 0, 
                             persons: req.body.persons,
                             tags: req.body.tags,
                             time: req.body.time,
-                            difficulty: req.body.difficulty,
-                            type: req.body.type,
+                            typeOfMeal: req.body.typeOfMeal,
+                            typeOfDish: req.body.typeOfDish,
+                            cuisine: req.body.cuisine,
+                            isChildFriendly: req.body.isChildFriendly,
+                            isVegetarian: req.body.isVegetarian,
                             ingredients: req.body.ingredients,
                             isPublic: req.body.isPublic,
                             steps: req.body.steps,
