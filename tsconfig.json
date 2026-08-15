@@ -1,5 +1,9 @@
 {
     "compilerOptions": {
+      // Explicit since TypeScript 7 changed the default: without this it emits
+      // ES modules, which breaks the directory imports (./config) in dist/.
+      "module": "commonjs",
+      "target": "es2022",
       "sourceMap": true,
       "outDir": "./dist",
       "rootDir": "./src",

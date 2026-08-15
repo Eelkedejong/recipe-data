@@ -1,12 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-var express_1 = require("express");
-var express_validator_1 = require("express-validator");
-var errors_1 = require("../modules/errors");
-var recipe_1 = require("../handlers/recipe");
-var shopping_list_1 = require("../handlers/shopping-list");
-var filters_1 = require("../handlers/filters");
-var router = (0, express_1.Router)();
+const express_1 = require("express");
+const express_validator_1 = require("express-validator");
+const errors_1 = require("../modules/errors");
+const recipe_1 = require("../handlers/recipe");
+const shopping_list_1 = require("../handlers/shopping-list");
+const filters_1 = require("../handlers/filters");
+const router = (0, express_1.Router)();
 // Recipe routes
 router.get('/recipe', recipe_1.getRecipes);
 router.get('/recipe/:id', recipe_1.getRecipe);

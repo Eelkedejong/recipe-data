@@ -3,16 +3,16 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-var express_1 = __importDefault(require("express"));
-var router_1 = __importDefault(require("./routers/router"));
-var public_1 = __importDefault(require("./routers/public"));
-var cors_1 = __importDefault(require("cors"));
-var morgan_1 = __importDefault(require("morgan"));
-var auth_1 = require("./modules/auth");
-var limiter_1 = require("./modules/limiter");
-var user_1 = require("./handlers/user");
-var password_reset_1 = require("./handlers/password-reset");
-var app = (0, express_1.default)();
+const express_1 = __importDefault(require("express"));
+const router_1 = __importDefault(require("./routers/router"));
+const public_1 = __importDefault(require("./routers/public"));
+const cors_1 = __importDefault(require("cors"));
+const morgan_1 = __importDefault(require("morgan"));
+const auth_1 = require("./modules/auth");
+const limiter_1 = require("./modules/limiter");
+const user_1 = require("./handlers/user");
+const password_reset_1 = require("./handlers/password-reset");
+const app = (0, express_1.default)();
 // Enable cors.
 app.use((0, cors_1.default)());
 // Use Morgan for logging.

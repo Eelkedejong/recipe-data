@@ -1,3 +1,4 @@
+import { Request, Response, NextFunction } from 'express';
 /**
  * Retrieves recipes based on the provided query parameters.
  *

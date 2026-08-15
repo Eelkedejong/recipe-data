@@ -1,3 +1,4 @@
+import { Request, Response, NextFunction } from 'express';
 /**
  * Returns all unique meal types from the user's recipes
  * This function is used to generate the meal type filter in the frontend

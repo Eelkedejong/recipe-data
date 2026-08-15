@@ -3,10 +3,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-var lodash_merge_1 = __importDefault(require("lodash.merge"));
+const lodash_merge_1 = __importDefault(require("lodash.merge"));
 process.env.NODE_ENV = process.env.NODE_ENV || 'development';
-var stage = process.env.STAGE || 'local';
-var envConfig;
+const stage = process.env.STAGE || 'local';
+let envConfig;
 if (stage === 'production') {
     envConfig = require('./prod').default;
 }
@@ -18,7 +18,7 @@ else {
 }
 exports.default = (0, lodash_merge_1.default)({
     // Set default variables
-    stage: stage,
+    stage,
     env: process.env.NODE_ENV,
     port: 3001,
     secrets: {

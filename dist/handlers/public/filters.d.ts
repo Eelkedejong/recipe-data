@@ -1,3 +1,4 @@
+import { Request, Response, NextFunction } from 'express';
 /**
  * Returns all unique tags from public recipes, with optional filtering by meal type, dish type, or cuisine
  *
