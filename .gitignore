@@ -3,3 +3,5 @@ node_modules
 .env
 .vercel
 /node_modules
+# Build output - Vercel compiles from source
+dist
