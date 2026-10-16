@@ -2,7 +2,6 @@ import nodemailer from "nodemailer"
 import jwt from "jsonwebtoken";
 import prisma from "../db"
 import { hashPassword, createJWTWithExpiration } from "../modules/auth"
-import { error } from "console"
 
 /**
  * Handles the password reset request.
@@ -34,33 +33,31 @@ export const passwordResetRequest = async (req, res, next) => {
     const subject = 'Password reset link'
     const resetLink = `${frontendUrl}/reset-password/${user.id}?token=${token}`
 
+    const transporter = nodemailer.createTransport({
+      service: process.env.SERVICE,
+      auth: {
+        user: process.env.MAIL,
+        pass: process.env.PASS,
+      },
+    });
+
     try {
-      const transporter = nodemailer.createTransport({
-          service: process.env.SERVICE,
-          auth: {
-              user: process.env.MAIL,
-              pass: process.env.PASS,
-          },
+      const info = await transporter.sendMail({
+        from: process.env.MAIL,
+        to: req.body.email,
+        subject: subject,
+        html: `click the following link to reset password: <a href="${resetLink}">Reset password</a>`,
       });
 
-      await transporter.sendMail({
-          from: process.env.MAIL,
-          to: req.body.email, 
-          subject: subject,
-          html: `${'click the following link to reset password:'} <a href="${resetLink}"> Reset password</a>`,
-      }, (error, info) => {
-        if (error) {
-          console.log(error);
-        }
-        console.log(`Message sent: ${info.response}`);
-      });
+      console.log(`Message sent: ${info.messageId}`);
+    } catch (error) {
+      console.error("email not sent", error);
+      res.status(502);
+      res.json({ message: "Could not send the password reset email." });
+      return;
+    }
 
-      console.log("email sent sucessfully");
-  } catch (error) {
-      console.log(error, "email not sent");
-  }
-
-  res.json({ message: "email send" })
+    res.json({ message: "email send" })
   } catch (e) {
     e.type = 'next'
     next(e)
