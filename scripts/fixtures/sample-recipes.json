@@ -1,0 +1,68 @@
+[
+  {
+    "id": 1,
+    "name": "Pasta met tomatensaus",
+    "isPublic": true,
+    "belongsTo": { "username": "eelke" },
+    "ingredients": [
+      { "id": 1, "unit": "g",  "amount": 400, "ingredient": "spaghetti" },
+      { "id": 2, "unit": "",   "amount": 1,   "ingredient": "gesnipperde ui" },
+      { "id": 3, "unit": "teentje", "amount": 2, "ingredient": "knoflook, fijngehakt" },
+      { "id": 4, "unit": "blik", "amount": 1,  "ingredient": "gehakte tomaten" },
+      { "id": 5, "unit": "el",  "amount": 2,   "ingredient": "olijfolie" },
+      { "id": 6, "unit": "",    "amount": null,"ingredient": "verse basilicum (een handvol)" },
+      { "id": 7, "unit": "snufje", "amount": 1,"ingredient": "zout" }
+    ]
+  },
+  {
+    "id": 2,
+    "name": "Chili sin carne",
+    "isPublic": true,
+    "belongsTo": { "username": "eelke" },
+    "ingredients": [
+      { "id": 1, "unit": "",   "amount": 2,   "ingredient": "uien" },
+      { "id": 2, "unit": "",   "amount": 1,   "ingredient": "rode paprika, in blokjes gesneden" },
+      { "id": 3, "unit": "blik", "amount": 1, "ingredient": "kidneybonen, uitgelekt" },
+      { "id": 4, "unit": "blik", "amount": 1, "ingredient": "tomatenblokjes" },
+      { "id": 5, "unit": "tl",  "amount": 2,  "ingredient": "gemalen komijn" },
+      { "id": 6, "unit": "",    "amount": 1,  "ingredient": "rode peper" },
+      { "id": 7, "unit": "",    "amount": 1,  "ingredient": "2 el olijfolie" }
+    ]
+  },
+  {
+    "id": 3,
+    "name": "Spaghetti bolognese",
+    "isPublic": true,
+    "belongsTo": { "username": "eelke" },
+    "ingredients": [
+      { "id": 1, "unit": "g",  "amount": 500, "ingredient": "gehakt" },
+      { "id": 2, "unit": "",   "amount": 1,   "ingredient": "grote ui, gesnipperd" },
+      { "id": 3, "unit": "",   "amount": 2,   "ingredient": "wortels, geraspt" },
+      { "id": 4, "unit": "g",  "amount": 400, "ingredient": "spaghetti" },
+      { "id": 5, "unit": "ml", "amount": 200, "ingredient": "rode wijn" },
+      { "id": 6, "unit": "g",  "amount": 50,  "ingredient": "Parmezaanse kaas, geraspt" },
+      { "id": 7, "unit": "takjes", "amount": 2, "ingredient": "verse tijm" }
+    ]
+  },
+  {
+    "id": 4,
+    "name": "Ovenschotel met aubergine",
+    "isPublic": false,
+    "belongsTo": { "username": "sanne" },
+    "ingredients": [
+      { "id": 1, "unit": "",  "amount": 2, "ingredient": "aubergines in blokjes" },
+      { "id": 2, "unit": "g", "amount": 250, "ingredient": "mozzarella" },
+      { "id": 3, "unit": "",  "amount": 1, "ingredient": "courgette" },
+      { "id": 4, "unit": "",  "amount": 3, "ingredient": "tomaten" },
+      { "id": 5, "unit": "g", "amount": 40, "ingredient": "creme fraiche" },
+      { "id": 6, "unit": "mespunt", "amount": 1, "ingredient": "nootmuskaat" }
+    ]
+  },
+  {
+    "id": 5,
+    "name": "Kapotte recipe",
+    "isPublic": false,
+    "belongsTo": { "username": "sanne" },
+    "ingredients": null
+  }
+]

@@ -19,7 +19,7 @@ export const createNewUser = async (req, res, next) => {
     // Check if there is a user with the same username
     const userExists = await prisma.user.findUnique({
       where: {
-        username: req.body.username
+        username: req.body.username?.trim()
       }
     })
 
@@ -33,7 +33,7 @@ export const createNewUser = async (req, res, next) => {
     // Check if there is a user with the same email
     const emailExists = await prisma.user.findUnique({
       where: {
-        email: req.body.email
+        email: req.body.email?.trim().toLowerCase()
       }
     })
 
@@ -55,8 +55,8 @@ export const createNewUser = async (req, res, next) => {
     // Await is used because we interact with a db and a network.
     const user = await prisma.user.create({
       data: {
-        username: req.body.username,
-        email: req.body.email,
+        username: req.body.username?.trim(),
+        email: req.body.email?.trim().toLowerCase(),
         password: hash
       }
     })
@@ -90,19 +90,24 @@ export const createNewUser = async (req, res, next) => {
  * @returns {Promise<void>} - A promise that resolves when the sign-in process is complete.
  */
 export const signIn = async (req, res, next) => {
-  console.log(req.body)
   const { body } = req;
+  // NB: req.body is deliberately not logged here - it carries the plaintext
+  // password, which must never reach the server logs.
+
+  // Credentials are trimmed: at least one existing username was stored with a
+  // trailing space, which made signing in by username impossible.
+  const loginname = typeof body.loginname === 'string' ? body.loginname.trim() : ''
 
   try  {
     // First, try to find the user by username
     let user = await prisma.user.findUnique({
-      where: { username: body.loginname }
+      where: { username: loginname }
     })
 
     // If no user was found, try to find the user by email
     if (!user) {
       user = await prisma.user.findUnique({
-        where: { email: body.loginname }
+        where: { email: loginname.toLowerCase() }
       })
     }
 
@@ -122,9 +127,19 @@ export const signIn = async (req, res, next) => {
       return;
     }
 
+    // Record the sign-in. Failure here must not block the login itself.
+    try {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { lastLoginAt: new Date() }
+      })
+    } catch (e) {
+      console.error('Could not record lastLoginAt', e)
+    }
+
     // If the user is logged in, give them a token.
     const token = createJWT(user) 
-    res.json({ token: token, username: user.username })
+    res.json({ token: token, username: user.username, role: user.role })
   } catch (e) {
     e.type = 'next'
     next(e)
