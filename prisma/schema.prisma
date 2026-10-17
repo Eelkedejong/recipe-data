@@ -10,14 +10,22 @@ datasource db {
   provider = "postgresql"
 }
 
+enum Role {
+  USER
+  ADMIN
+}
+
 model User {
   id           String         @id @default(uuid())
   createdAt    DateTime       @default(now())
   username     String         @unique
   email        String         @unique
   password     String
+  role         Role           @default(USER)
+  lastLoginAt  DateTime?
   recipes      Recipe[]
   shoppinglist ShoppingList[]
+  savedRecipes SavedRecipe[]
 }
 
 model Recipe {
@@ -36,12 +44,89 @@ model Recipe {
   ingredients    Json
   steps          String[]
   isPublic       Boolean  @default(false)
+  // Part of the site's own collection, as opposed to a recipe a user chose
+  // to share. Only admins set this. Kept explicit rather than derived from
+  // the owner's role, so demoting an admin cannot reclassify their recipes.
+  isHouseRecipe  Boolean  @default(false)
   isChildFriendly Boolean  @default(false)
   isVegetarian   Boolean  @default(false)
   belongsToId    String
   belongsTo      User     @relation(fields: [belongsToId], references: [id])
+  savedBy        SavedRecipe[]
 
   @@unique([id, belongsToId])
+  @@index([isPublic, isHouseRecipe])
+}
+
+/// A user keeping someone else's recipe. Recipe.belongsToId stays the single
+/// owner; this is the many-to-many that ownership cannot express.
+model SavedRecipe {
+  userId    String
+  recipeId  Int
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipe    Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@id([userId, recipeId])
+  @@index([recipeId])
+}
+
+/// Supermarket aisles. A table rather than an enum so the list and its
+/// ordering can be changed without a migration.
+model IngredientCategory {
+  id          String       @id @default(uuid())
+  slug        String       @unique
+  nameNl      String
+  sortOrder   Int
+  ingredients Ingredient[]
+}
+
+/// The global ingredient catalog. Not user-scoped: one curated set, edited
+/// by admins, shared by everyone.
+model Ingredient {
+  id           String  @id @default(uuid())
+  slug         String  @unique
+  nameNl       String
+  nameNlPlural String?
+  nameEn       String?
+
+  categoryId String?
+  category   IngredientCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  /// "g" | "ml" | "piece". Prefilled into the recipe form; never enforced.
+  baseUnit String?
+
+  /// Null means unknown, which is not the same as false. A recipe's diet
+  /// flags are only derived when every ingredient answers definitively.
+  isVegetarian Boolean?
+  isVegan      Boolean?
+
+  seasonMonths Int[]
+
+  /// Deferred. Populated by a NEVO import if nutrition ever happens -
+  /// never filled in by hand.
+  gramsPerPiece    Float?
+  gramsPerMl       Float?
+  nevoCode         String?
+  nutritionPer100g Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  aliases IngredientAlias[]
+
+  @@index([categoryId])
+}
+
+/// Alternative spellings that resolve to one ingredient. This is how plurals
+/// and misspellings are handled, rather than by stemming.
+model IngredientAlias {
+  id           String     @id @default(uuid())
+  name         String     @unique
+  ingredientId String
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+
+  @@index([ingredientId])
 }
 
 model ShoppingList {

@@ -1,3 +1,4 @@
+import prisma from '../db'
 import jwt from "jsonwebtoken";
 import bcrypt from 'bcrypt'
 
@@ -76,3 +77,39 @@ export const protect = (req, res, next) => {
 }
 
 
+
+
+/**
+ * Gate for admin-only routes. Must run after protect().
+ *
+ * The role is read from the database rather than the JWT on purpose. Tokens
+ * issued before roles existed carry no role at all, and a token minted while
+ * a user was an admin would otherwise keep working after they were demoted.
+ * Admin routes are rare, so the extra read costs nothing that matters.
+ */
+export const requireAdmin = async (req, res, next) => {
+  if (!req.user?.id) {
+    res.status(401)
+    res.send('not authorized')
+    return
+  }
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: { role: true }
+    })
+
+    if (user?.role !== 'ADMIN') {
+      res.status(403)
+      res.json({ message: 'This action requires an admin account.' })
+      return
+    }
+
+    req.user.role = user.role
+    next()
+  } catch (e) {
+    e.type = 'next'
+    next(e)
+  }
+}
