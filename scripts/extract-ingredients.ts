@@ -302,6 +302,31 @@ const main = async () => {
 
   const clusteredKeyCount = clusters.reduce((sum, c) => sum + c.length, 0);
 
+  /**
+   * What the catalog actually becomes. Several observed spellings collapse
+   * into one entry via a shared slug; the extra spellings become aliases.
+   */
+  const catalogEntries = new Map<string, { slug: string; name: string; plural?: string; aliases: string[]; rows: number }>();
+  for (const group of ranked) {
+    const suggestion = SUGGESTION_INDEX.get(group.matchKey);
+    if (!suggestion) continue;
+    const existing = catalogEntries.get(suggestion.slug);
+    if (existing) {
+      existing.aliases.push(group.matchKey);
+      existing.rows += group.occurrences;
+    } else {
+      catalogEntries.set(suggestion.slug, {
+        slug: suggestion.slug,
+        name: suggestion.nameNl,
+        plural: suggestion.nameNlPlural,
+        aliases: [group.matchKey],
+        rows: group.occurrences,
+      });
+    }
+  }
+  const catalogList = [...catalogEntries.values()].sort((a, b) => b.rows - a.rows);
+  const collapsing = catalogList.filter((e) => e.aliases.length > 1);
+
   const report = `# Ingredient extraction report
 
 Generated ${new Date().toISOString().slice(0, 10)}${args.author ? ` — filtered to author \`${args.author}\`` : ''}
@@ -355,6 +380,26 @@ ${ranked
 Ranked by use. The top of this list is where curation time pays off.
 
 ${unmatched.slice(0, 40).map((g) => `- \`${mostCommon(g.names)}\` — ${g.occurrences} rows, ${g.recipeIds.size} recipes`).join('\n') || '- none'}${unmatched.length > 40 ? `\n\n...and ${unmatched.length - 40} more in the CSV.` : ''}
+
+## What the catalog becomes
+
+The CSV has one row per spelling FOUND IN YOUR RECIPES. That is not the
+same as one row per catalog entry. Rows sharing a \`FINAL_slug\` collapse
+into a single entry, and the extra spellings become its aliases.
+
+With the suggestions as they stand, **${ranked.length} observed spellings become
+${catalogList.length} catalog entries** (plus ${ranked.length - catalogList.length} still
+uncategorised). ${collapsing.length} of those entries absorb more than one spelling:
+
+| entry | shown as | absorbs |
+|---|---|---|
+${collapsing
+  .slice(0, 25)
+  .map((e) => `| \`${e.slug}\` | ${e.name}${e.plural ? ` / ${e.plural}` : ''} | ${e.aliases.map((a) => `\`${a}\``).join(', ')} |`)
+  .join('\n')}
+
+So \`ui\` and \`uien\` are **one** entry with two aliases, displayed as "ui" or
+"uien" depending on the amount - not two ingredients.
 
 ### Probably the same ingredient, written differently (${clusterRows.length} clusters, ${clusteredKeyCount} entries)
 
@@ -419,6 +464,7 @@ ${CATEGORIES.map((c) => `- \`${c.slug}\` (${c.sortOrder}) — ${c.nameNl}`).join
   console.log(`Used in exactly 1:      ${ranked.length - multiUse.length}`);
   console.log(`Curate for 80% cover:   ${cumulativeAt(0.8)} entries`);
   console.log(`Near-duplicate clusters: ${clusterRows.length} covering ${clusteredKeyCount} entries`);
+  console.log(`Catalog entries:        ${catalogList.length} (from ${ranked.length} observed spellings)`);
   console.log(`\nWrote ${path.join(args.out, 'ingredients.csv')}`);
   console.log(`Wrote ${path.join(args.out, 'units.csv')}`);
   console.log(`Wrote ${path.join(args.out, 'report.md')}`);
