@@ -145,3 +145,31 @@ export const signIn = async (req, res, next) => {
     next(e)
   }
 }
+
+/**
+ * Returns the signed-in user, including their role.
+ *
+ * The role is deliberately not carried in the JWT: tokens issued before roles
+ * existed have none, and a token minted while someone was an admin must stop
+ * granting admin powers once they are demoted. Reading it here keeps the
+ * frontend in step with requireAdmin.
+ */
+export const getMe = async (req, res, next) => {
+  try {
+    const me = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: { id: true, username: true, email: true, role: true, createdAt: true }
+    })
+
+    if (!me) {
+      res.status(404)
+      res.json({ message: 'User not found.' })
+      return
+    }
+
+    res.json({ data: me })
+  } catch (e) {
+    e.type = 'next'
+    next(e)
+  }
+}

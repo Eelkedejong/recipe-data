@@ -6,8 +6,12 @@ import { createShoppingList, deleteShoppingList, getShoppingList, updateShopping
 import { getRecipeTypes, getRecipeTags, getRecipeDishTypes, getRecipeCuisines } from '../handlers/filters';
 import { createIngredient, updateIngredient, deleteIngredient, setAliases, createCategory, updateCategory } from '../handlers/ingredient';
 import { requireAdmin } from '../modules/auth';
+import { getMe } from '../handlers/user';
 
 const router = Router()
+
+// The signed-in user, role included.
+router.get('/me', getMe)
 
 // Recipe routes
 router.get('/recipe', getRecipes)
@@ -64,11 +68,13 @@ router.post('/ingredient',
   requireAdmin,
   body('slug').isString().trim().notEmpty(),
   body('nameNl').isString().trim().notEmpty(),
-  body('nameNlPlural').optional(),
-  body('categoryId').optional(),
-  body('baseUnit').optional(),
-  body('isVegetarian').optional().isBoolean(),
-  body('isVegan').optional().isBoolean(),
+  body('nameNlPlural').optional({ values: 'null' }),
+  body('categoryId').optional({ values: 'null' }),
+  body('baseUnit').optional({ values: 'null' }),
+  // null is meaningful here - it means "unknown", as opposed to false - so
+  // the validator has to let it through. Bare .optional() only skips undefined.
+  body('isVegetarian').optional({ values: 'null' }).isBoolean(),
+  body('isVegan').optional({ values: 'null' }).isBoolean(),
   body('seasonMonths').optional().isArray(),
   handleInputErrors,
   createIngredient
@@ -77,11 +83,13 @@ router.post('/ingredient',
 router.put('/ingredient/:slug',
   requireAdmin,
   body('nameNl').isString().trim().notEmpty(),
-  body('nameNlPlural').optional(),
-  body('categoryId').optional(),
-  body('baseUnit').optional(),
-  body('isVegetarian').optional().isBoolean(),
-  body('isVegan').optional().isBoolean(),
+  body('nameNlPlural').optional({ values: 'null' }),
+  body('categoryId').optional({ values: 'null' }),
+  body('baseUnit').optional({ values: 'null' }),
+  // null is meaningful here - it means "unknown", as opposed to false - so
+  // the validator has to let it through. Bare .optional() only skips undefined.
+  body('isVegetarian').optional({ values: 'null' }).isBoolean(),
+  body('isVegan').optional({ values: 'null' }).isBoolean(),
   body('seasonMonths').optional().isArray(),
   handleInputErrors,
   updateIngredient
