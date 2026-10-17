@@ -24,6 +24,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { normaliseIngredient, toMatchKey } from './lib/normalise';
 import { CATEGORIES, SUGGESTION_INDEX, UNIT_ALIASES } from './lib/vocabulary';
+import { findCandidates, buildClusters } from './lib/similarity';
 
 interface Args {
   author?: string;
@@ -193,9 +194,22 @@ const main = async () => {
     (a, b) => b.occurrences - a.occurrences || a.matchKey.localeCompare(b.matchKey),
   );
 
+  // ---- near-duplicate detection ----
+  const allKeys = ranked.map((g) => g.matchKey);
+  const candidates = findCandidates(allKeys);
+  const clusters = buildClusters(allKeys, candidates);
+
+  /** matchKey -> the other members of its cluster. */
+  const clusterPeers = new Map<string, string[]>();
+  for (const cluster of clusters) {
+    for (const key of cluster) {
+      clusterPeers.set(key, cluster.filter((other) => other !== key));
+    }
+  }
+
   // ---- ingredients.csv ----
   const header = [
-    'matchKey', 'occurrences', 'recipeCount', 'authors',
+    'matchKey', 'occurrences', 'recipeCount', 'authors', 'likelySameAs',
     'cleanedName', 'rawExamples', 'detectedPrep', 'unitsUsed', 'embeddedAmounts',
     'suggestedSlug', 'suggestedCategory', 'suggestedBaseUnit', 'suggestedGramsPerPiece',
     'suggestedIsVegetarian', 'suggestedIsVegan',
@@ -219,6 +233,7 @@ const main = async () => {
         group.occurrences,
         group.recipeIds.size,
         [...group.authors].sort().join(' | '),
+        (clusterPeers.get(group.matchKey) ?? []).join(' | '),
         mostCommon(group.names),
         [...group.rawExamples].join(' | '),
         [...group.prepExamples].join(' | '),
@@ -265,8 +280,27 @@ const main = async () => {
   };
 
   const unmatched = ranked.filter((g) => !SUGGESTION_INDEX.has(g.matchKey));
+  /**
+   * Ingredients used in more than one recipe. This is the number that matters
+   * for shopping-list merging: an ingredient used once can never merge with
+   * anything, so curating it buys aisle grouping only, not merging.
+   */
+  const multiUse = ranked.filter((g) => g.recipeIds.size > 1);
+  const multiUseRows = multiUse.reduce((sum, g) => sum + g.occurrences, 0);
   const withEmbeddedAmounts = ranked.filter((g) => g.embeddedAmounts.size > 0);
   const unknownUnits = [...unitCounts.keys()].filter((u) => !UNIT_ALIASES[toMatchKey(u)]);
+  /** Unit cells that contain a number, i.e. an amount typed into the unit column. */
+  const unitsWithAmounts = [...unitCounts.keys()].filter((u) => /\d/.test(u));
+
+  const clusterRows = clusters
+    .map((cluster) =>
+      cluster
+        .map((key) => ({ key, count: groups.get(key)?.occurrences ?? 0 }))
+        .sort((a, b) => b.count - a.count),
+    )
+    .sort((a, b) => b[0].count - a[0].count);
+
+  const clusteredKeyCount = clusters.reduce((sum, c) => sum + c.length, 0);
 
   const report = `# Ingredient extraction report
 
@@ -279,12 +313,23 @@ Generated ${new Date().toISOString().slice(0, 10)}${args.author ? ` — filtered
 | Recipes scanned | ${recipes.length} |
 | Ingredient rows | ${totalRows} |
 | Distinct ingredients | ${ranked.length} |
+| Used in 2+ recipes | ${multiUse.length} |
+| Used in exactly 1 recipe | ${ranked.length - multiUse.length} |
 | Matched by the starter dictionary | ${matchedGroups} (${Math.round((matchedGroups / Math.max(ranked.length, 1)) * 100)}%) |
 | Rows with an empty name | ${emptyNameRows} |
 
+## Where to stop
+
+The headline number is **${multiUse.length} ingredients used in more than one
+recipe**, covering ${multiUseRows} of ${totalRows} rows. That is the real target:
+an ingredient that appears in exactly one recipe can never merge with
+anything, so curating it buys aisle grouping only - never a merged
+shopping-list line. The ${ranked.length - multiUse.length} single-use ingredients
+can stay free text indefinitely without costing you the headline feature.
+
 ## Coverage curve
 
-This is the number you use to decide where to stop curating.
+Use this only if you want aisle grouping to reach deeper than merging does.
 
 | Share of all ingredient rows | Entries you need to curate |
 |---|---|
@@ -311,6 +356,17 @@ Ranked by use. The top of this list is where curation time pays off.
 
 ${unmatched.slice(0, 40).map((g) => `- \`${mostCommon(g.names)}\` — ${g.occurrences} rows, ${g.recipeIds.size} recipes`).join('\n') || '- none'}${unmatched.length > 40 ? `\n\n...and ${unmatched.length - 40} more in the CSV.` : ''}
 
+### Probably the same ingredient, written differently (${clusterRows.length} clusters, ${clusteredKeyCount} entries)
+
+Candidates only - confirm each before merging. Giving every member of a
+cluster the same \`FINAL_slug\` collapses it into one catalog entry with
+several aliases, which is the fastest way to shrink this list.
+
+${clusterRows
+  .slice(0, 40)
+  .map((cluster) => `- ${cluster.map((m) => `\`${m.key}\` (${m.count})`).join('  ·  ')}`)
+  .join('\n') || '- none'}${clusterRows.length > 40 ? `\n\n...and ${clusterRows.length - 40} more clusters in the \`likelySameAs\` column.` : ''}
+
 ### Unit strings with no canonical mapping (${unknownUnits.length})
 
 ${unknownUnits.map((u) => `- \`${u}\` (${unitCounts.get(u)} rows)`).join('\n') || '- none'}
@@ -323,6 +379,10 @@ These rows have the quantity in the ingredient name, so their \`amount\`
 column is probably wrong or empty. Worth fixing in the recipes themselves.
 
 ${withEmbeddedAmounts.slice(0, 20).map((g) => `- \`${mostCommon(g.names)}\` — ${[...g.embeddedAmounts].join(', ')}`).join('\n') || '- none'}
+
+### Amounts typed into the unit field (${unitsWithAmounts.length})
+
+${unitsWithAmounts.map((u) => `- \`${u}\` (${unitCounts.get(u)} rows)`).join('\n') || '- none'}
 
 ### Recipes whose ingredients are not an array (${malformedRecipes.length})
 
@@ -355,7 +415,10 @@ ${CATEGORIES.map((c) => `- \`${c.slug}\` (${c.sortOrder}) — ${c.nameNl}`).join
   console.log(`Ingredient rows:        ${totalRows}`);
   console.log(`Distinct ingredients:   ${ranked.length}`);
   console.log(`Dictionary matched:     ${matchedGroups}`);
+  console.log(`Used in 2+ recipes:     ${multiUse.length}  <- the number that matters`);
+  console.log(`Used in exactly 1:      ${ranked.length - multiUse.length}`);
   console.log(`Curate for 80% cover:   ${cumulativeAt(0.8)} entries`);
+  console.log(`Near-duplicate clusters: ${clusterRows.length} covering ${clusteredKeyCount} entries`);
   console.log(`\nWrote ${path.join(args.out, 'ingredients.csv')}`);
   console.log(`Wrote ${path.join(args.out, 'units.csv')}`);
   console.log(`Wrote ${path.join(args.out, 'report.md')}`);
