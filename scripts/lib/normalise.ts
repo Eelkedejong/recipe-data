@@ -35,6 +35,7 @@ const QUALIFIERS = [
   'gesmolten',
   'gegrilde', 'gegrild',
   'rauwe', 'rauw',
+  'rijpe', 'rijp',
   // freshness / form
   'verse', 'vers',
   'gedroogde', 'gedroogd',
