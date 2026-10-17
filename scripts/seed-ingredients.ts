@@ -18,7 +18,7 @@ import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import * as fs from 'node:fs';
-import { CATEGORIES } from './lib/vocabulary';
+import { CATEGORIES, SUGGESTIONS } from './lib/vocabulary';
 import { toMatchKey } from './lib/normalise';
 
 const apply = process.argv.includes('--apply');
@@ -134,9 +134,19 @@ const main = async () => {
     }
   }
 
+  // Alternative spellings from the starter dictionary, even when no recipe
+  // ever used them: someone typing "eierplant" should still find aubergine.
+  const dictionaryAliases = new Map<string, string[]>(
+    SUGGESTIONS.map((suggestion) => [suggestion.slug, suggestion.aliases]),
+  );
+
   // Every display form is also an alias, so autocomplete finds the entry by
   // its own name even when that spelling never appeared in a recipe.
   for (const entry of entries.values()) {
+    for (const alias of dictionaryAliases.get(entry.slug) ?? []) {
+      const key = toMatchKey(alias);
+      if (key) entry.aliases.add(key);
+    }
     entry.aliases.add(toMatchKey(entry.slug.replace(/-/g, ' ')));
     entry.aliases.add(toMatchKey(entry.nameNl));
     if (entry.nameNlPlural) entry.aliases.add(toMatchKey(entry.nameNlPlural));
@@ -232,7 +242,20 @@ const main = async () => {
     });
   }
 
+  // Entries in the database that this CSV no longer produces. NOT deleted
+  // automatically: an admin may have added them by hand, and silently
+  // removing someone's work would be worse than leaving a stale row.
+  const inDb = await prisma.ingredient.findMany({ select: { slug: true, nameNl: true } });
+  const orphans = inDb.filter((row) => !entries.has(row.slug));
+
   console.log(`\nSeeded ${entries.size} ingredients and ${totalAliases} aliases.`);
+
+  if (orphans.length) {
+    console.log(`\nIn the database but not in this CSV (${orphans.length}), left alone:`);
+    orphans.forEach((row) => console.log(`  ${row.slug}  "${row.nameNl}"`));
+    console.log('Delete them by hand if they are stale: npx prisma studio');
+  }
+
   await prisma.$disconnect();
 };
 
