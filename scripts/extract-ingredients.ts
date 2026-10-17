@@ -4,7 +4,8 @@
  * READ-ONLY. This script never writes to the database.
  *
  *   npx tsx scripts/extract-ingredients.ts
- *   npx tsx scripts/extract-ingredients.ts --author=eelke   # house recipes first
+ *   npx tsx scripts/extract-ingredients.ts --author=Eleur
+ *   npx tsx scripts/extract-ingredients.ts --exclude-author=Truitje
  *   npx tsx scripts/extract-ingredients.ts --out=scripts/out
  *   npx tsx scripts/extract-ingredients.ts --fixture=scripts/fixtures/sample-recipes.json
  *
@@ -28,18 +29,23 @@ import { findCandidates, buildClusters } from './lib/similarity';
 
 interface Args {
   author?: string;
+  /** Usernames whose recipes are left out of the catalog entirely. */
+  excludeAuthors: string[];
   out: string;
   /** Read recipes from a JSON file instead of the database. */
   fixture?: string;
 }
 
 const parseArgs = (argv: string[]): Args => {
-  const args: Args = { out: 'scripts/out' };
+  const args: Args = { out: 'scripts/out', excludeAuthors: [] };
   for (const arg of argv.slice(2)) {
     const [key, value] = arg.replace(/^--/, '').split('=');
     if (key === 'author' && value) args.author = value;
     if (key === 'out' && value) args.out = value;
     if (key === 'fixture' && value) args.fixture = value;
+    if (key === 'exclude-author' && value) {
+      args.excludeAuthors = value.split(',').map((name) => name.trim()).filter(Boolean);
+    }
   }
   return args;
 };
@@ -131,11 +137,17 @@ const main = async () => {
 
   let totalRows = 0;
   let emptyNameRows = 0;
+  let excludedRecipes = 0;
   const malformedRecipes: { id: number; name: string; reason: string }[] = [];
 
   for (const recipe of recipes) {
     const author = recipe.belongsTo?.username ?? 'unknown';
     if (args.author && author !== args.author) continue;
+    // Usernames are compared trimmed: at least one in the data has a trailing space.
+    if (args.excludeAuthors.some((name) => name === author.trim())) {
+      excludedRecipes += 1;
+      continue;
+    }
 
     if (!Array.isArray(recipe.ingredients)) {
       malformedRecipes.push({
@@ -211,12 +223,11 @@ const main = async () => {
   const header = [
     'matchKey', 'occurrences', 'recipeCount', 'authors', 'likelySameAs',
     'cleanedName', 'rawExamples', 'detectedPrep', 'unitsUsed', 'embeddedAmounts',
-    'suggestedSlug', 'suggestedCategory', 'suggestedBaseUnit', 'suggestedGramsPerPiece',
+    'suggestedSlug', 'suggestedCategory', 'suggestedBaseUnit',
     'suggestedIsVegetarian', 'suggestedIsVegan',
     // blank columns for the curation pass
     'FINAL_slug', 'FINAL_nameNl', 'FINAL_namePlural', 'FINAL_category',
-    'FINAL_baseUnit', 'FINAL_gramsPerPiece', 'FINAL_gramsPerMl',
-    'FINAL_isVegetarian', 'FINAL_isVegan', 'FINAL_seasonMonths', 'FINAL_nevoCode',
+    'FINAL_baseUnit', 'FINAL_isVegetarian', 'FINAL_isVegan', 'FINAL_seasonMonths',
     'SKIP',
   ];
 
@@ -242,7 +253,6 @@ const main = async () => {
         suggestion?.slug ?? '',
         suggestion?.category ?? '',
         suggestion?.baseUnit ?? '',
-        suggestion?.gramsPerPiece ?? '',
         suggestion?.isVegetarian ?? '',
         suggestion?.isVegan ?? '',
         // pre-fill the FINAL_ columns from the suggestion so review is a
@@ -252,11 +262,8 @@ const main = async () => {
         suggestion?.nameNlPlural ?? '',
         suggestion?.category ?? '',
         suggestion?.baseUnit ?? '',
-        suggestion?.gramsPerPiece ?? '',
-        '',
         suggestion?.isVegetarian ?? '',
         suggestion?.isVegan ?? '',
-        '',
         '',
         '',
       ]),
@@ -335,7 +342,7 @@ Generated ${new Date().toISOString().slice(0, 10)}${args.author ? ` — filtered
 
 | | |
 |---|---|
-| Recipes scanned | ${recipes.length} |
+| Recipes scanned | ${recipes.length - excludedRecipes} |${excludedRecipes ? `\n| Recipes excluded | ${excludedRecipes} (${args.excludeAuthors.join(', ')}) |` : ''}
 | Ingredient rows | ${totalRows} |
 | Distinct ingredients | ${ranked.length} |
 | Used in 2+ recipes | ${multiUse.length} |
@@ -456,7 +463,7 @@ ${CATEGORIES.map((c) => `- \`${c.slug}\` (${c.sortOrder}) — ${c.nameNl}`).join
   fs.writeFileSync(path.join(args.out, 'units.csv'), unitLines.join('\n') + '\n');
   fs.writeFileSync(path.join(args.out, 'report.md'), report);
 
-  console.log(`Recipes scanned:        ${recipes.length}`);
+  console.log(`Recipes scanned:        ${recipes.length - excludedRecipes}${excludedRecipes ? `  (${excludedRecipes} excluded)` : ''}`);
   console.log(`Ingredient rows:        ${totalRows}`);
   console.log(`Distinct ingredients:   ${ranked.length}`);
   console.log(`Dictionary matched:     ${matchedGroups}`);

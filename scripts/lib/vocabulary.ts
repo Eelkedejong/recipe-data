@@ -16,6 +16,7 @@ export const CATEGORIES = [
   { slug: 'dairy', nameNl: 'Zuivel & eieren', sortOrder: 30 },
   { slug: 'meat-fish', nameNl: 'Vlees & vis', sortOrder: 40 },
   { slug: 'pantry', nameNl: 'Voorraad', sortOrder: 50 },
+  { slug: 'koek-snoep', nameNl: 'Koek & snoep', sortOrder: 55 },
   { slug: 'herbs-spices', nameNl: 'Kruiden & specerijen', sortOrder: 60 },
   { slug: 'frozen', nameNl: 'Diepvries', sortOrder: 70 },
   { slug: 'drinks', nameNl: 'Dranken', sortOrder: 80 },
@@ -140,7 +141,7 @@ export const SUGGESTIONS: Suggestion[] = [
   { slug: 'yoghurt', nameNl: 'yoghurt', category: 'dairy', baseUnit: 'g', ...dairy, aliases: ['yoghurt', 'griekse yoghurt'] },
   { slug: 'boter', nameNl: 'boter', category: 'dairy', baseUnit: 'g', ...dairy, aliases: ['boter', 'roomboter', 'ongezouten boter'] },
   { slug: 'kaas', nameNl: 'kaas', category: 'dairy', baseUnit: 'g', ...dairy, aliases: ['kaas', 'geraspte kaas'] },
-  { slug: 'parmezaan', nameNl: 'parmezaanse kaas', category: 'dairy', baseUnit: 'g', ...dairy, aliases: ['parmezaan', 'parmezaanse kaas', 'parmigiano'] },
+  { slug: 'parmezaan', nameNl: 'parmezaanse kaas', category: 'dairy', baseUnit: 'g', ...dairy, aliases: ['parmezaan', 'parmezaanse kaas', 'parmezaanse kaas in vlokken', 'parmigiano'] },
   { slug: 'mozzarella', nameNl: 'mozzarella', category: 'dairy', baseUnit: 'g', ...dairy, aliases: ['mozzarella'] },
   { slug: 'feta', nameNl: 'feta', category: 'dairy', baseUnit: 'g', ...dairy, aliases: ['feta', 'fetakaas'] },
   { slug: 'ei', nameNl: 'ei', nameNlPlural: 'eieren', category: 'dairy', baseUnit: 'piece', gramsPerPiece: 55, ...dairy, aliases: ['ei', 'eieren', 'eitje'] },
@@ -153,7 +154,7 @@ export const SUGGESTIONS: Suggestion[] = [
   { slug: 'worst', nameNl: 'worst', category: 'meat-fish', baseUnit: 'g', ...meat, aliases: ['worst', 'worstjes'] },
   { slug: 'zalm', nameNl: 'zalm', category: 'meat-fish', baseUnit: 'g', ...meat, aliases: ['zalm', 'zalmfilet', 'zalmmoot'] },
   { slug: 'garnalen', nameNl: 'garnalen', category: 'meat-fish', baseUnit: 'g', ...meat, aliases: ['garnalen', 'garnaal'] },
-  { slug: 'tonijn', nameNl: 'tonijn', category: 'meat-fish', baseUnit: 'g', ...meat, aliases: ['tonijn'] },
+  { slug: 'tonijn', nameNl: 'tonijn', category: 'meat-fish', baseUnit: 'g', ...meat, aliases: ['tonijn', 'tonijn uit blik'] },
 
   // ---- pantry ----
   { slug: 'olijfolie', nameNl: 'olijfolie', category: 'pantry', baseUnit: 'ml', ...veg, aliases: ['olijfolie', 'extra vierge olijfolie'] },
@@ -171,7 +172,7 @@ export const SUGGESTIONS: Suggestion[] = [
   { slug: 'linzen', nameNl: 'linzen', category: 'pantry', baseUnit: 'g', ...veg, aliases: ['linzen', 'rode linzen'] },
   { slug: 'kikkererwten', nameNl: 'kikkererwten', category: 'pantry', baseUnit: 'g', ...veg, aliases: ['kikkererwten'] },
   { slug: 'kidneybonen', nameNl: 'kidneybonen', category: 'pantry', baseUnit: 'g', ...veg, aliases: ['kidneybonen', 'bruine bonen', 'zwarte bonen'] },
-  { slug: 'tomatenblokjes', nameNl: 'tomatenblokjes', category: 'pantry', baseUnit: 'g', ...veg, aliases: ['tomatenblokjes', 'gepelde tomaten', 'tomaten uit blik'] },
+  { slug: 'tomatenblokjes', nameNl: 'tomatenblokjes', category: 'pantry', baseUnit: 'g', ...veg, aliases: ['tomatenblokjes', 'tomatenblokjes in blik', 'gepelde tomaten', 'tomaten uit blik'] },
   { slug: 'tomatenpuree', nameNl: 'tomatenpuree', category: 'pantry', baseUnit: 'g', ...veg, aliases: ['tomatenpuree'] },
   { slug: 'passata', nameNl: 'passata', category: 'pantry', baseUnit: 'ml', ...veg, aliases: ['passata', 'tomatenpassata'] },
   { slug: 'kokosmelk', nameNl: 'kokosmelk', category: 'pantry', baseUnit: 'ml', ...veg, aliases: ['kokosmelk'] },
@@ -235,9 +236,9 @@ export const SUGGESTIONS: Suggestion[] = [
   { slug: 'focaccia', nameNl: 'focaccia', category: 'bakery', baseUnit: 'piece', isVegetarian: true, aliases: ['focaccia'] },
   { slug: 'pizzabodem', nameNl: 'pizzabodem', category: 'bakery', baseUnit: 'piece', isVegetarian: true, aliases: ['pizzabodem'] },
   { slug: 'lasagnebladen', nameNl: 'lasagnebladen', category: 'pantry', baseUnit: 'g', isVegetarian: true, aliases: ['lasagnebladen', 'lasagnevellen'] },
-  { slug: 'lange-vingers', nameNl: 'lange vingers', category: 'bakery', baseUnit: 'g', isVegetarian: true, aliases: ['lange vingers', 'lange vinger koekjes'] },
-  { slug: 'bastogne-koekjes', nameNl: 'bastognekoekjes', category: 'bakery', baseUnit: 'g', isVegetarian: true, aliases: ['bastogne koekjes', 'bastognekoekjes'] },
-  { slug: 'meringue', nameNl: 'meringue', nameNlPlural: 'meringues', category: 'bakery', baseUnit: 'g', isVegetarian: true, aliases: ['meringue', 'meringues'] },
+  { slug: 'lange-vingers', nameNl: 'lange vingers', category: 'koek-snoep', baseUnit: 'g', isVegetarian: true, aliases: ['lange vingers', 'lange vinger koekjes'] },
+  { slug: 'bastogne-koekjes', nameNl: 'bastognekoekjes', category: 'koek-snoep', baseUnit: 'g', isVegetarian: true, aliases: ['bastogne koekjes', 'bastognekoekjes'] },
+  { slug: 'meringue', nameNl: 'meringue', nameNlPlural: 'meringues', category: 'koek-snoep', baseUnit: 'g', isVegetarian: true, aliases: ['meringue', 'meringues'] },
 
   // dairy
   { slug: 'kwark', nameNl: 'kwark', category: 'dairy', baseUnit: 'g', ...dairy, aliases: ['kwark', 'magere kwark'] },
