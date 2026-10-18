@@ -17,6 +17,12 @@ import { mergeQuantities, formatQuantity } from './units';
  */
 
 export interface GeneratedItem {
+  /**
+   * Stable identity for this line across rebuilds. Catalog-linked rows key on
+   * the ingredient id, unlinked ones on their text - which is the best that
+   * can be done when nothing says two typed strings mean the same thing.
+   */
+  key: string;
   ingredientId: string | null;
   /** Display name, pluralised when the total calls for it. */
   name: string;
@@ -33,7 +39,15 @@ export interface GeneratedGroup {
   items: GeneratedItem[];
 }
 
+/**
+ * Bumped whenever the generated shape changes. A stored list from an older
+ * version is rebuilt rather than rendered, which is what stops a cache
+ * written before a field existed from being served without it.
+ */
+export const GENERATED_VERSION = 2;
+
 export interface GeneratedList {
+  version: number;
   generatedAt: string;
   groups: GeneratedGroup[];
   /** Rows with no catalog link, counted so the UI can nudge an admin. */
@@ -79,7 +93,12 @@ export const generateShoppingList = async (userId: string): Promise<GeneratedLis
     );
 
   if (entries.length === 0) {
-    return { generatedAt: new Date().toISOString(), groups: [], unlinkedCount: 0 };
+    return {
+      version: GENERATED_VERSION,
+      generatedAt: new Date().toISOString(),
+      groups: [],
+      unlinkedCount: 0,
+    };
   }
 
   const recipes = await prisma.recipe.findMany({
@@ -98,6 +117,7 @@ export const generateShoppingList = async (userId: string): Promise<GeneratedLis
   const byId = new Map(catalog.map((ingredient) => [ingredient.id, ingredient]));
 
   interface Bucket {
+    key: string;
     ingredientId: string | null;
     name: string;
     plural: string | null;
@@ -134,6 +154,7 @@ export const generateShoppingList = async (userId: string): Promise<GeneratedLis
 
       if (!bucket) {
         bucket = {
+          key,
           ingredientId: linked?.id ?? null,
           name: linked?.nameNl ?? typed,
           plural: linked?.nameNlPlural ?? null,
@@ -184,6 +205,7 @@ export const generateShoppingList = async (userId: string): Promise<GeneratedLis
     };
 
     group.items.push({
+      key: bucket.key,
       ingredientId: bucket.ingredientId,
       name,
       quantities,
@@ -197,6 +219,7 @@ export const generateShoppingList = async (userId: string): Promise<GeneratedLis
   ordered.forEach((group) => group.items.sort((a, b) => a.name.localeCompare(b.name)));
 
   return {
+    version: GENERATED_VERSION,
     generatedAt: new Date().toISOString(),
     groups: ordered,
     unlinkedCount,
@@ -213,4 +236,120 @@ export const refreshShoppingList = async (userId: string): Promise<GeneratedList
   });
 
   return generated;
+};
+
+
+/**
+ * Shopping-time edits. Deliberately separate from the generated list, which
+ * is thrown away and rebuilt whenever the recipes change.
+ */
+export interface ListState {
+  /** Keyed by GeneratedItem.key. */
+  overrides: Record<string, { checked?: boolean; removed?: boolean }>;
+  /** Added by hand, each sitting in a chosen aisle rather than a bucket of its own. */
+  extras: {
+    id: string;
+    name: string;
+    categorySlug: string | null;
+    checked?: boolean;
+  }[];
+}
+
+const EMPTY_STATE: ListState = { overrides: {}, extras: [] };
+
+export interface ViewItem extends GeneratedItem {
+  checked: boolean;
+  /** True for a hand-added item, which has no recipe behind it. */
+  manual: boolean;
+}
+
+export interface ViewGroup {
+  categorySlug: string;
+  categoryName: string;
+  sortOrder: number;
+  items: ViewItem[];
+}
+
+/**
+ * The list as it should be rendered: generated lines merged with the edits
+ * made on top of them, and hand-added items sitting in the aisle they were
+ * put in rather than collected at the end.
+ */
+export const buildListView = async (
+  userId: string,
+): Promise<{ groups: ViewGroup[]; unlinkedCount: number; generatedAt: string }> => {
+  const list = await prisma.shoppingList.findFirst({
+    where: { belongsToId: userId },
+    select: { generatedItems: true, listState: true },
+  });
+
+  const stored = list?.generatedItems as unknown as GeneratedList | null;
+  const generated =
+    stored && stored.version === GENERATED_VERSION
+      ? stored
+      : await refreshShoppingList(userId);
+  const state = {
+    ...EMPTY_STATE,
+    ...((list?.listState as unknown as ListState | null) ?? {}),
+  };
+
+  const categories = await prisma.ingredientCategory.findMany({
+    select: { slug: true, nameNl: true, sortOrder: true },
+  });
+  const categoryBySlug = new Map(categories.map((category) => [category.slug, category]));
+
+  const groups = new Map<string, ViewGroup>();
+
+  for (const group of generated.groups) {
+    const items = group.items
+      // A line removed because it is already at home stays removed across
+      // rebuilds - that is the whole point of keeping state separately.
+      .filter((item) => !state.overrides[item.key]?.removed)
+      .map((item) => ({
+        ...item,
+        checked: Boolean(state.overrides[item.key]?.checked),
+        manual: false,
+      }));
+
+    if (items.length) {
+      groups.set(group.categorySlug, { ...group, items });
+    }
+  }
+
+  for (const extra of state.extras) {
+    const slug = extra.categorySlug ?? 'other';
+    const category = categoryBySlug.get(slug) ?? {
+      slug,
+      nameNl: FALLBACK_CATEGORY.nameNl,
+      sortOrder: FALLBACK_CATEGORY.sortOrder,
+    };
+
+    const group = groups.get(slug) ?? {
+      categorySlug: slug,
+      categoryName: category.nameNl,
+      sortOrder: category.sortOrder,
+      items: [],
+    };
+
+    group.items.push({
+      key: `extra:${extra.id}`,
+      ingredientId: null,
+      name: extra.name,
+      quantities: [],
+      recipeIds: [],
+      checked: Boolean(extra.checked),
+      manual: true,
+    });
+
+    groups.set(slug, group);
+  }
+
+  const ordered = [...groups.values()].sort((a, b) => a.sortOrder - b.sortOrder);
+  ordered.forEach((group) => group.items.sort((a, b) => a.name.localeCompare(b.name)));
+
+  return {
+    groups: ordered,
+    unlinkedCount: generated.unlinkedCount,
+    generatedAt: generated.generatedAt,
+  };
 };

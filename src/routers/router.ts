@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { body, oneOf, validationResult } from "express-validator";
 import { handleInputErrors } from '../modules/errors'
 import { getRecipes, getRecipe, updateRecipe, createRecipe, deleteRecipe } from '../handlers/recipe';
-import { createShoppingList, deleteShoppingList, getShoppingList, updateShoppingListRecipes, updateShoppingListItems, removeRecipeFromShoppingList } from '../handlers/shopping-list';
+import { createShoppingList, deleteShoppingList, getShoppingList, updateShoppingListRecipes, updateShoppingListItems, removeRecipeFromShoppingList, getShoppingListView, updateShoppingListState } from '../handlers/shopping-list';
 import { getRecipeTypes, getRecipeTags, getRecipeDishTypes, getRecipeCuisines } from '../handlers/filters';
 import { createIngredient, updateIngredient, deleteIngredient, setAliases, createCategory, updateCategory } from '../handlers/ingredient';
 import { requireAdmin } from '../modules/auth';
@@ -147,6 +147,16 @@ router.put('/list/items',
 body('items').optional(),
   handleInputErrors, 
   updateShoppingListItems
+)
+
+// The list as rendered: generated lines plus the edits made on top of them.
+router.get('/list/view', getShoppingListView)
+
+router.put('/list/state',
+  body('overrides').optional(),
+  body('extras').optional().isArray(),
+  handleInputErrors,
+  updateShoppingListState
 )
 
 router.delete('/list', deleteShoppingList)

@@ -140,6 +140,11 @@ model ShoppingList {
   /// grouped into supermarket aisles. Rebuilt whenever the recipes change,
   /// so it is a cache rather than a source of truth.
   generatedItems Json?
+  /// Shopping-time edits that must survive a rebuild: ticking something off,
+  /// removing a line you already have at home, and items added by hand with
+  /// the aisle they belong in. Kept apart from generatedItems precisely
+  /// because that gets thrown away and rebuilt.
+  listState      Json?
   belongsToId String
   belongsTo   User     @relation(fields: [belongsToId], references: [id])
 

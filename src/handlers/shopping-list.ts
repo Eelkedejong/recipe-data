@@ -1,6 +1,7 @@
+import { randomUUID } from 'node:crypto';
 import prisma from "../db";
 import { Request, Response, NextFunction } from 'express';
-import { refreshShoppingList } from '../modules/shopping-list';
+import { refreshShoppingList, buildListView } from '../modules/shopping-list';
 
 /**
  * Create Shopping list. This is called when a new user is created.
@@ -209,3 +210,56 @@ export const deleteShoppingList = async (req: Request, res: Response, next: Next
 
 
 
+
+/**
+ * GET /list/view - the list as it should be rendered.
+ *
+ * Generated lines merged with the edits made on top of them, hand-added items
+ * sitting in their chosen aisle. The frontend renders this directly rather
+ * than combining two shapes itself.
+ */
+export const getShoppingListView = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    res.json({ data: await buildListView(req.user.id) })
+  } catch (e) {
+    (e as { type?: string }).type = 'next'
+    next(e)
+  }
+}
+
+/**
+ * PUT /list/state - shopping-time edits.
+ *
+ * Ticking a line off, removing one already at home, and items added by hand.
+ * Stored apart from the generated list so adding a recipe does not undo them.
+ */
+export const updateShoppingListState = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const overrides = typeof req.body.overrides === 'object' && req.body.overrides !== null
+      ? req.body.overrides
+      : {}
+
+    const extras = Array.isArray(req.body.extras)
+      ? req.body.extras
+          .filter((extra: { name?: unknown }) => typeof extra?.name === 'string' && extra.name.trim())
+          .map((extra: { id?: unknown; name: string; categorySlug?: unknown; checked?: unknown }) => ({
+            // An id is generated here when the client did not send one, so a
+            // line keeps its identity once it exists.
+            id: typeof extra.id === 'string' && extra.id ? extra.id : randomUUID(),
+            name: extra.name.trim(),
+            categorySlug: typeof extra.categorySlug === 'string' ? extra.categorySlug : null,
+            checked: Boolean(extra.checked)
+          }))
+      : []
+
+    await prisma.shoppingList.updateMany({
+      where: { belongsToId: req.user.id },
+      data: { listState: { overrides, extras } as never }
+    })
+
+    res.json({ data: await buildListView(req.user.id) })
+  } catch (e) {
+    (e as { type?: string }).type = 'next'
+    next(e)
+  }
+}
