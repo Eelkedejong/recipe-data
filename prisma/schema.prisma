@@ -132,8 +132,14 @@ model IngredientAlias {
 model ShoppingList {
   id          Int      @id @default(autoincrement())
   recipes     Json[]
+  /// Hand-typed list, kept while the UI still reads it. Superseded by
+  /// generatedItems, which is derived rather than typed.
   items       String[]
   extraItems  String[]
+  /// Derived from the list's recipes: amounts merged per ingredient and
+  /// grouped into supermarket aisles. Rebuilt whenever the recipes change,
+  /// so it is a cache rather than a source of truth.
+  generatedItems Json?
   belongsToId String
   belongsTo   User     @relation(fields: [belongsToId], references: [id])
 

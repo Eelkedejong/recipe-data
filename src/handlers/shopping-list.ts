@@ -1,5 +1,6 @@
 import prisma from "../db";
 import { Request, Response, NextFunction } from 'express';
+import { refreshShoppingList } from '../modules/shopping-list';
 
 /**
  * Create Shopping list. This is called when a new user is created.
@@ -33,6 +34,12 @@ export const getShoppingList = async (req, res, next) => {
         belongsToId: req.user.id
       }
     })
+
+    // Lists created before the generated view existed have nothing stored, so
+    // the first read builds it.
+    if (list && !list.generatedItems) {
+      list.generatedItems = await refreshShoppingList(req.user.id) as never
+    }
 
     res.json({data: list})
   } catch (e) {
@@ -92,8 +99,11 @@ export const updateShoppingListRecipes = async (req: Request, res: Response, nex
       }
     });
 
-    // Return the updated shopping list
-    res.json({ data: updatedList });
+    // The generated list is derived from these recipes, so it is rebuilt here
+    // rather than left stale until something else happens to refresh it.
+    const generatedItems = await refreshShoppingList(req.user.id);
+
+    res.json({ data: { ...updatedList, generatedItems } });
   } catch (e) {
     e.type = 'next';
     next(e);
@@ -135,7 +145,9 @@ export const removeRecipeFromShoppingList = async (req: Request, res: Response, 
       } 
     });
 
-    res.json({ data: updatedList });
+    const generatedItems = await refreshShoppingList(req.user.id);
+
+    res.json({ data: { ...updatedList, generatedItems } });
   } catch (e) {
     e.type = 'next';
     next(e);
@@ -170,63 +182,6 @@ export const updateShoppingListItems = async (req: Request, res: Response, next:
     e.type = 'next';
     next(e);
   }
-}
-
-// OLD FUNCTION @TODO: Permenantly remove this function
-export const updateIngredientByRecipeShoppingList = async (req: Request, res: Response, next: NextFunction) => {
-    // Get the existing shopping list
-    const shoppingList = await prisma.shoppingList.findFirst({
-      where: {
-        belongsToId: req.user.id
-      }
-    });
-
-    // Get the recipes from the shopping list
-    const recipes = shoppingList.recipes;
- 
-
-    // Track the ingredients that need to be added to the shopping list
-    let newIngredients = [];
-
-    recipes.map(async (recipe: { id: number, persons: number }) => {
-      const recipeIngredients = await prisma.recipe.findUnique({
-        where: {
-          id: recipe.id
-        },
-        select: {
-          persons: true,
-          ingredients: true
-        }
-      });
-
-      // Multiply the ingredient amounts by the number of persons
-      if (Array.isArray(recipeIngredients.ingredients)) {
-        recipeIngredients.ingredients.forEach((ingredient: { amount: number, ingredient: string }) => {
-          if (recipe.persons !== recipeIngredients.persons) {
-            ingredient.amount = ingredient.amount * (recipe.persons / recipeIngredients.persons);
-          }
-
-          // Check if the ingredient already exists in the newIngredients list
-          const existingIngredient = newIngredients.find((newIngredient) => newIngredient.ingredient === ingredient.ingredient);
-
-          if (existingIngredient) {
-            // If the ingredient already exists, add the amounts together
-            existingIngredient.amount += ingredient.amount;
-          } else {
-            // If the ingredient doesn't exist, add it to the newIngredients list
-            newIngredients.push(ingredient);
-          }
-        });
-      } else {
-        // Handle the case where recipeIngredients.ingredients is not an array
-        console.log('recipeIngredients.ingredients is not an array');
-      }
-    })
-
-    // Convert the ingredients to a string, starting with the amound, then the unit, then the ingredient
-    newIngredients = newIngredients.map((ingredient) => {
-      return `${ingredient.amount} ${ingredient.unit} ${ingredient.ingredient}`;
-    });
 }
 
 /**
