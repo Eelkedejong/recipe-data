@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import prisma from "../db";
 import { Request, Response, NextFunction } from 'express';
-import { refreshShoppingList, buildListView } from '../modules/shopping-list';
+import { refreshShoppingList, buildListView, ListState } from '../modules/shopping-list';
 
 /**
  * Create Shopping list. This is called when a new user is created.
@@ -62,42 +62,45 @@ export const getShoppingList = async (req, res, next) => {
  */
 export const updateShoppingListRecipes = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // Get the existing shopping list
     const shoppingList = await prisma.shoppingList.findFirst({
-      where: {
-        belongsToId: req.user.id
-      }
+      where: { belongsToId: req.user.id },
+      select: { recipes: true }
     });
 
-    // Track the recipes that need to be added to the shopping list
-    let newRecipes = [];
+    const existing = Array.isArray(shoppingList?.recipes)
+      ? (shoppingList!.recipes as { id?: number }[])
+      : [];
 
-    // If the shopping list is empty, add all the recipes from the request body to the newRecipes list
-    if (shoppingList.recipes.length === 0) {
-      newRecipes = req.body.recipes;
-    } else {
-      // If the shopping list is not empty, compare the recipes in the request body with the recipes in the shopping list
-      req.body.recipes.forEach((recipe: { id: number, persons: number }) => {
-        const existingRecipeIndex = shoppingList.recipes.findIndex((existingRecipe: { id: number, persons: number }) => existingRecipe.id === recipe.id);
+    const incoming = Array.isArray(req.body.recipes) ? req.body.recipes : [];
 
-        if (existingRecipeIndex !== -1) {
-          shoppingList.recipes[existingRecipeIndex] = recipe;
-        } else {
-          newRecipes.push(recipe);
-        }
-      });
-    }
+    // Only entries with a real id are kept. The recipe detail page used to
+    // send { persons } with no id, which broke every read of this list.
+    const clean = (entry: { id?: unknown; persons?: unknown; excludedRows?: unknown }) => ({
+      id: Number(entry.id),
+      persons: Number(entry.persons) || undefined,
+      excludedRows: Array.isArray(entry.excludedRows)
+        ? entry.excludedRows.filter((row) => typeof row === 'number')
+        : []
+    });
 
-    // Add the new recipes and ingredients to the shopping list
+    const usable = incoming
+      .filter((entry: { id?: unknown }) => Number.isInteger(Number(entry?.id)))
+      .map(clean);
+
+    const incomingIds = new Set(usable.map((entry) => entry.id));
+
+    // Adding a recipe that is already on the list replaces it, so the newest
+    // persons count and ticks win.
+    const recipes = [
+      ...existing.filter(
+        (entry) => Number.isInteger(entry?.id) && !incomingIds.has(entry.id as number)
+      ),
+      ...usable
+    ];
+
     const updatedList = await prisma.shoppingList.update({
-      where: {
-        belongsToId: req.user.id
-      },
-      data: {
-        recipes: {
-          set: [...shoppingList.recipes, ...newRecipes]
-        }
-      }
+      where: { belongsToId: req.user.id },
+      data: { recipes: { set: recipes } }
     });
 
     // The generated list is derived from these recipes, so it is rebuilt here
@@ -106,7 +109,7 @@ export const updateShoppingListRecipes = async (req: Request, res: Response, nex
 
     res.json({ data: { ...updatedList, generatedItems } });
   } catch (e) {
-    e.type = 'next';
+    (e as { type?: string }).type = 'next';
     next(e);
   }
 };
@@ -235,27 +238,75 @@ export const getShoppingListView = async (req: Request, res: Response, next: Nex
  */
 export const updateShoppingListState = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const overrides = typeof req.body.overrides === 'object' && req.body.overrides !== null
-      ? req.body.overrides
+    const ticked = typeof req.body.ticked === 'object' && req.body.ticked !== null
+      ? req.body.ticked
       : {}
 
     const extras = Array.isArray(req.body.extras)
       ? req.body.extras
           .filter((extra: { name?: unknown }) => typeof extra?.name === 'string' && extra.name.trim())
-          .map((extra: { id?: unknown; name: string; categorySlug?: unknown; checked?: unknown }) => ({
-            // An id is generated here when the client did not send one, so a
-            // line keeps its identity once it exists.
+          .map((extra: { id?: unknown; name: string; categorySlug?: unknown; ticked?: unknown }) => ({
             id: typeof extra.id === 'string' && extra.id ? extra.id : randomUUID(),
             name: extra.name.trim(),
             categorySlug: typeof extra.categorySlug === 'string' ? extra.categorySlug : null,
-            checked: Boolean(extra.checked)
+            ticked: Boolean(extra.ticked)
           }))
       : []
 
     await prisma.shoppingList.updateMany({
       where: { belongsToId: req.user.id },
-      data: { listState: { overrides, extras } as never }
+      data: { listState: { ticked, extras } as never }
     })
+
+    res.json({ data: await buildListView(req.user.id) })
+  } catch (e) {
+    (e as { type?: string }).type = 'next'
+    next(e)
+  }
+}
+
+/**
+ * PUT /list/refine - what the shopping list page saves.
+ *
+ * Replaces the recipes on the list (with their persons count and unchecked
+ * rows) and the extra items, in one write. Edits on that page are local until
+ * the user presses save, so this is a full replace rather than a patch.
+ */
+export const refineShoppingList = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const recipes = (Array.isArray(req.body.recipes) ? req.body.recipes : [])
+      .filter((entry: { id?: unknown }) => Number.isInteger(Number(entry?.id)))
+      .map((entry: { id?: unknown; persons?: unknown; excludedRows?: unknown }) => ({
+        id: Number(entry.id),
+        persons: Number(entry.persons) || undefined,
+        excludedRows: Array.isArray(entry.excludedRows)
+          ? entry.excludedRows.filter((row: unknown) => typeof row === 'number')
+          : []
+      }))
+
+    const current = await prisma.shoppingList.findFirst({
+      where: { belongsToId: req.user.id },
+      select: { listState: true }
+    })
+    const state = (current?.listState as unknown as ListState | null) ?? { ticked: {}, extras: [] }
+
+    const extras = Array.isArray(req.body.extras)
+      ? req.body.extras
+          .filter((extra: { name?: unknown }) => typeof extra?.name === 'string' && extra.name.trim())
+          .map((extra: { id?: unknown; name: string; categorySlug?: unknown; ticked?: unknown }) => ({
+            id: typeof extra.id === 'string' && extra.id ? extra.id : randomUUID(),
+            name: extra.name.trim(),
+            categorySlug: typeof extra.categorySlug === 'string' ? extra.categorySlug : null,
+            ticked: Boolean(extra.ticked)
+          }))
+      : state.extras
+
+    await prisma.shoppingList.update({
+      where: { belongsToId: req.user.id },
+      data: { recipes: { set: recipes }, listState: { ...state, extras } as never }
+    })
+
+    await refreshShoppingList(req.user.id)
 
     res.json({ data: await buildListView(req.user.id) })
   } catch (e) {

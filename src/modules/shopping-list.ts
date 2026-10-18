@@ -86,7 +86,7 @@ export const generateShoppingList = async (userId: string): Promise<GeneratedLis
   // which rejects undefined inside an `in` array.
   const entries = (Array.isArray(list?.recipes) ? (list!.recipes as unknown[]) : [])
     .filter(
-      (entry): entry is { id: number; persons?: number } =>
+      (entry): entry is { id: number; persons?: number; excludedRows?: unknown } =>
         typeof entry === 'object' &&
         entry !== null &&
         typeof (entry as { id?: unknown }).id === 'number',
@@ -138,7 +138,16 @@ export const generateShoppingList = async (userId: string): Promise<GeneratedLis
     const scale =
       wanted && recipe.persons && recipe.persons > 0 ? wanted / recipe.persons : 1;
 
+    // Rows the user unchecked for this recipe, either on the detail page when
+    // adding it or afterwards on the shopping list.
+    const entry = entries.find((candidate) => candidate.id === recipe.id);
+    const excluded = new Set(
+      Array.isArray(entry?.excludedRows) ? (entry!.excludedRows as unknown[]) : [],
+    );
+
     for (const row of recipe.ingredients as RecipeRow[]) {
+      if (excluded.has((row as { id?: unknown }).id)) continue;
+
       const typed =
         (typeof row.name === 'string' && row.name) ||
         (typeof row.ingredient === 'string' && row.ingredient) ||
@@ -244,21 +253,22 @@ export const refreshShoppingList = async (userId: string): Promise<GeneratedList
  * is thrown away and rebuilt whenever the recipes change.
  */
 export interface ListState {
-  /** Keyed by GeneratedItem.key. */
-  overrides: Record<string, { checked?: boolean; removed?: boolean }>;
+  /** Ticked off in the shop, keyed by GeneratedItem.key. Hidden by default,
+   *  but revealable - ticking is not deleting. */
+  ticked: Record<string, boolean>;
   /** Added by hand, each sitting in a chosen aisle rather than a bucket of its own. */
   extras: {
     id: string;
     name: string;
     categorySlug: string | null;
-    checked?: boolean;
+    ticked?: boolean;
   }[];
 }
 
-const EMPTY_STATE: ListState = { overrides: {}, extras: [] };
+const EMPTY_STATE: ListState = { ticked: {}, extras: [] };
 
 export interface ViewItem extends GeneratedItem {
-  checked: boolean;
+  ticked: boolean;
   /** True for a hand-added item, which has no recipe behind it. */
   manual: boolean;
 }
@@ -284,8 +294,8 @@ export const buildListView = async (
   /** Returned so an edit can be sent back whole; removed lines are not in
    *  `groups`, so the client could not reconstruct it otherwise. */
   state: ListState;
-  /** How many lines are hidden, so the UI can offer to bring them back. */
-  removedCount: number;
+  /** How many lines are ticked off, so the in-store view can offer to show them. */
+  tickedCount: number;
 }> => {
   const list = await prisma.shoppingList.findFirst({
     where: { belongsToId: userId },
@@ -310,15 +320,13 @@ export const buildListView = async (
   const groups = new Map<string, ViewGroup>();
 
   for (const group of generated.groups) {
-    const items = group.items
-      // A line removed because it is already at home stays removed across
-      // rebuilds - that is the whole point of keeping state separately.
-      .filter((item) => !state.overrides[item.key]?.removed)
-      .map((item) => ({
-        ...item,
-        checked: Boolean(state.overrides[item.key]?.checked),
-        manual: false,
-      }));
+    // Everything is returned, ticked or not: the in-store view hides ticked
+    // lines itself and can reveal them again without another request.
+    const items = group.items.map((item) => ({
+      ...item,
+      ticked: Boolean(state.ticked[item.key]),
+      manual: false,
+    }));
 
     if (items.length) {
       groups.set(group.categorySlug, { ...group, items });
@@ -346,7 +354,7 @@ export const buildListView = async (
       name: extra.name,
       quantities: [],
       recipeIds: [],
-      checked: Boolean(extra.checked),
+      ticked: Boolean(extra.ticked),
       manual: true,
     });
 
@@ -356,15 +364,15 @@ export const buildListView = async (
   const ordered = [...groups.values()].sort((a, b) => a.sortOrder - b.sortOrder);
   ordered.forEach((group) => group.items.sort((a, b) => a.name.localeCompare(b.name)));
 
-  const removedCount = Object.values(state.overrides).filter(
-    (override) => override?.removed,
-  ).length;
+  const tickedCount = [...generated.groups.flatMap((group) => group.items)].filter(
+    (item) => state.ticked[item.key],
+  ).length + state.extras.filter((extra) => extra.ticked).length;
 
   return {
     groups: ordered,
     unlinkedCount: generated.unlinkedCount,
     generatedAt: generated.generatedAt,
     state,
-    removedCount,
+    tickedCount,
   };
 };

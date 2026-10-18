@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { body, oneOf, validationResult } from "express-validator";
 import { handleInputErrors } from '../modules/errors'
 import { getRecipes, getRecipe, updateRecipe, createRecipe, deleteRecipe } from '../handlers/recipe';
-import { createShoppingList, deleteShoppingList, getShoppingList, updateShoppingListRecipes, updateShoppingListItems, removeRecipeFromShoppingList, getShoppingListView, updateShoppingListState } from '../handlers/shopping-list';
+import { createShoppingList, deleteShoppingList, getShoppingList, updateShoppingListRecipes, updateShoppingListItems, removeRecipeFromShoppingList, getShoppingListView, updateShoppingListState, refineShoppingList } from '../handlers/shopping-list';
 import { getRecipeTypes, getRecipeTags, getRecipeDishTypes, getRecipeCuisines } from '../handlers/filters';
 import { createIngredient, updateIngredient, deleteIngredient, setAliases, createCategory, updateCategory } from '../handlers/ingredient';
 import { requireAdmin } from '../modules/auth';
@@ -132,7 +132,7 @@ router.post('/list',
 )
 
 router.put('/list/recipes',
-body('recipes').optional(),
+  body('recipes').optional().isArray(),
   handleInputErrors, 
   updateShoppingListRecipes
 )
@@ -152,11 +152,20 @@ body('items').optional(),
 // The list as rendered: generated lines plus the edits made on top of them.
 router.get('/list/view', getShoppingListView)
 
+// What the in-store view saves: ticked lines and quick-added extras.
 router.put('/list/state',
-  body('overrides').optional(),
+  body('ticked').optional(),
   body('extras').optional().isArray(),
   handleInputErrors,
   updateShoppingListState
+)
+
+// What the shopping list page's save button sends: the whole refinement.
+router.put('/list/refine',
+  body('recipes').optional().isArray(),
+  body('extras').optional().isArray(),
+  handleInputErrors,
+  refineShoppingList
 )
 
 router.delete('/list', deleteShoppingList)
