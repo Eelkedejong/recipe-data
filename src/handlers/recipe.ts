@@ -1,6 +1,7 @@
 import prisma from "../db";
 import { Request, Response, NextFunction } from 'express';
 import { syncRecipe } from '../modules/recipe-ingredients';
+import { removeRecipeFromLists, refreshListsContaining } from '../modules/shopping-list';
 
 
 /**
@@ -184,6 +185,41 @@ export const getRecipe = async (req, res, next) => {
 }
 
 /**
+ * Makes sure every ingredient row has an id that is unique within the recipe.
+ *
+ * A shopping list remembers unticked rows by id, so an id has to keep meaning
+ * the same row. Ids that arrive are therefore kept exactly as sent and only
+ * missing or colliding ones are filled in - never renumbered, which would move
+ * an exclusion onto a different ingredient.
+ */
+const withRowIds = (ingredients: unknown): unknown => {
+  if (!Array.isArray(ingredients)) return ingredients
+
+  const taken = new Set<number>()
+  let next =
+    ingredients.reduce(
+      (highest: number, row) =>
+        Number.isInteger((row as { id?: unknown })?.id) && (row as { id: number }).id > highest
+          ? (row as { id: number }).id
+          : highest,
+      0,
+    ) + 1
+
+  return ingredients.map((row) => {
+    const stored = (row as { id?: unknown })?.id
+
+    if (typeof stored === 'number' && Number.isInteger(stored) && stored > 0 && !taken.has(stored)) {
+      taken.add(stored)
+      return row
+    }
+
+    const id = next++
+    taken.add(id)
+    return { ...(row as object), id }
+  })
+}
+
+/**
  * Creates a new recipe.
  * 
  * @param req - The request object.
@@ -192,6 +228,7 @@ export const getRecipe = async (req, res, next) => {
  */
 export const createRecipe = async (req: Request, res: Response, next: NextFunction) => {
   const url = req.body.name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '')
+  const ingredients = withRowIds(req.body.ingredients)
 
   try {
     const recipe = await prisma.recipe.create({
@@ -208,7 +245,7 @@ export const createRecipe = async (req: Request, res: Response, next: NextFuncti
         cuisine: req.body.cuisine || [],
         isChildFriendly: req.body.isChildFriendly || false,
         isVegetarian: req.body.isVegetarian || false,
-        ingredients: req.body.ingredients,
+        ingredients: ingredients as never,
         isPublic: req.body.isPublic || false,
         steps: req.body.steps,
         belongsToId: req.user.id
@@ -217,7 +254,7 @@ export const createRecipe = async (req: Request, res: Response, next: NextFuncti
 
     // The ingredient index and the diet flags are both derived from the
     // ingredients, so they are kept in step here rather than by a later job.
-    const dietFlags = await syncRecipe(recipe.id, req.body.ingredients)
+    const dietFlags = await syncRecipe(recipe.id, ingredients)
 
     res.json({data: { ...recipe, ...(dietFlags ?? {}) }})
   } catch (e) {
@@ -241,6 +278,8 @@ export const updateRecipe = async (req: Request, res: Response, next: NextFuncti
     url = req.body.name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, ''); // Update the URL if the name is provided
   }
 
+  const ingredients = withRowIds(req.body.ingredients)
+
   try {
     const updatedRecipe = await prisma.recipe.update({
       where: {
@@ -262,13 +301,17 @@ export const updateRecipe = async (req: Request, res: Response, next: NextFuncti
         cuisine: req.body.cuisine,
         isChildFriendly: req.body.isChildFriendly,
         isVegetarian: req.body.isVegetarian,
-        ingredients: req.body.ingredients,
+        ingredients: ingredients as never,
         isPublic: req.body.isPublic,
         steps: req.body.steps,
       }
     })
 
-    const dietFlags = await syncRecipe(updatedRecipe.id, req.body.ingredients)
+    const dietFlags = await syncRecipe(updatedRecipe.id, ingredients)
+
+    // Anyone already holding this recipe on a shopping list is looking at
+    // lines generated from the old version, so those are rebuilt here.
+    await refreshListsContaining(updatedRecipe.id)
 
     res.json({data: { ...updatedRecipe, ...(dietFlags ?? {}) }})
   } catch (e) {
@@ -295,6 +338,10 @@ export const deleteRecipe = async (req: Request, res: Response, next: NextFuncti
         }
       }
     })
+
+    // The index rows go with it through the schema's cascade, but shopping
+    // lists hold recipe ids in a Json column, so those are cleaned up here.
+    await removeRecipeFromLists(deletedRecipe.id)
 
     res.json({data: deletedRecipe})
   } catch (e) {

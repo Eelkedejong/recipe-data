@@ -235,6 +235,66 @@ export const generateShoppingList = async (userId: string): Promise<GeneratedLis
   };
 };
 
+/**
+ * The lists currently holding a given recipe.
+ *
+ * Every list is looked at rather than just the recipe owner's: a public recipe
+ * can sit on someone else's list, and that list has the same stale cache.
+ */
+const listsHolding = async (recipeId: number) => {
+  const lists = await prisma.shoppingList.findMany({
+    select: { id: true, belongsToId: true, recipes: true },
+  });
+
+  return lists.filter((list) =>
+    (Array.isArray(list.recipes) ? (list.recipes as { id?: unknown }[]) : []).some(
+      (entry) => entry?.id === recipeId,
+    ),
+  );
+};
+
+/**
+ * Rebuilds every list holding this recipe. Called when the recipe changes.
+ *
+ * The generated lines are a cache rebuilt only when a list's own recipes
+ * change, so without this an edit to a recipe - a renamed ingredient, a
+ * different amount, a changed serving count - never reaches the grocery list
+ * of anyone who already had it.
+ */
+export const refreshListsContaining = async (recipeId: number): Promise<number> => {
+  const holding = await listsHolding(recipeId);
+
+  for (const list of holding) {
+    await refreshShoppingList(list.belongsToId);
+  }
+
+  return holding.length;
+};
+
+/**
+ * Takes a deleted recipe off every shopping list that still references it.
+ *
+ * The lists keep recipe ids inside a Json column, so nothing cascades when a
+ * recipe is deleted, and its ingredients would otherwise sit on somebody's
+ * grocery list for good.
+ */
+export const removeRecipeFromLists = async (recipeId: number): Promise<number> => {
+  const holding = await listsHolding(recipeId);
+
+  for (const list of holding) {
+    const entries = Array.isArray(list.recipes) ? (list.recipes as { id?: unknown }[]) : [];
+
+    await prisma.shoppingList.update({
+      where: { id: list.id },
+      data: { recipes: { set: entries.filter((entry) => entry?.id !== recipeId) as never } },
+    });
+
+    await refreshShoppingList(list.belongsToId);
+  }
+
+  return holding.length;
+};
+
 /** Regenerates and stores the list. Called whenever its recipes change. */
 export const refreshShoppingList = async (userId: string): Promise<GeneratedList> => {
   const generated = await generateShoppingList(userId);
