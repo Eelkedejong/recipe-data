@@ -277,7 +277,16 @@ export interface ViewGroup {
  */
 export const buildListView = async (
   userId: string,
-): Promise<{ groups: ViewGroup[]; unlinkedCount: number; generatedAt: string }> => {
+): Promise<{
+  groups: ViewGroup[];
+  unlinkedCount: number;
+  generatedAt: string;
+  /** Returned so an edit can be sent back whole; removed lines are not in
+   *  `groups`, so the client could not reconstruct it otherwise. */
+  state: ListState;
+  /** How many lines are hidden, so the UI can offer to bring them back. */
+  removedCount: number;
+}> => {
   const list = await prisma.shoppingList.findFirst({
     where: { belongsToId: userId },
     select: { generatedItems: true, listState: true },
@@ -347,9 +356,15 @@ export const buildListView = async (
   const ordered = [...groups.values()].sort((a, b) => a.sortOrder - b.sortOrder);
   ordered.forEach((group) => group.items.sort((a, b) => a.name.localeCompare(b.name)));
 
+  const removedCount = Object.values(state.overrides).filter(
+    (override) => override?.removed,
+  ).length;
+
   return {
     groups: ordered,
     unlinkedCount: generated.unlinkedCount,
     generatedAt: generated.generatedAt,
+    state,
+    removedCount,
   };
 };
