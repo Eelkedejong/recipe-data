@@ -50,7 +50,13 @@ export const getRecipes = async (req: Request, res: Response, next: NextFunction
     const conditions = [];
     
     if (ids.length > 0) {
-      conditions.push({ id: { in: ids.map(id => parseInt(id)) } });
+      // Anything that is not a number is dropped rather than passed on as NaN,
+      // which Prisma rejects outright - one bad id used to fail the whole
+      // request instead of just not matching.
+      const numericIds = ids.map((id) => parseInt(id)).filter(Number.isInteger);
+      if (numericIds.length > 0) {
+        conditions.push({ id: { in: numericIds } });
+      }
     }
     
     if (tags.length > 0) {
