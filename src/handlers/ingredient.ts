@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import prisma from '../db';
 import { Request, Response, NextFunction } from 'express';
+import { toMatchKey } from '../modules/ingredient-text';
 
 /**
  * The ingredient catalog is global, admin-curated and read by everyone.
@@ -153,6 +154,51 @@ export const getCategories = async (req: Request, res: Response, next: NextFunct
   }
 };
 
+
+/**
+ * Alias rows derived from an ingredient's own names.
+ *
+ * Without these an ingredient is still findable in the app - the client
+ * searches nameNl and its plural directly - but the recipe backfill matches
+ * purely through this table, so an ingredient with no alias rows can never be
+ * linked to the text in a recipe. The seed derives the same keys, so the two
+ * paths agree.
+ */
+const derivedAliases = (ingredient: {
+  slug: string;
+  nameNl: string;
+  nameNlPlural?: string | null;
+}): string[] => [
+  ...new Set(
+    [ingredient.slug.replace(/-/g, ' '), ingredient.nameNl, ingredient.nameNlPlural]
+      .filter(Boolean)
+      .map((value) => toMatchKey(value as string))
+      .filter(Boolean),
+  ),
+];
+
+/**
+ * Adds the derived aliases, leaving any hand-curated ones alone.
+ *
+ * skipDuplicates covers the case where another ingredient already claims one
+ * of these keys: the unique index is what stops two ingredients answering to
+ * the same word, and the first claim wins.
+ */
+const syncDerivedAliases = async (ingredient: {
+  id: string;
+  slug: string;
+  nameNl: string;
+  nameNlPlural?: string | null;
+}) => {
+  await prisma.ingredientAlias.createMany({
+    data: derivedAliases(ingredient).map((name) => ({
+      name,
+      ingredientId: ingredient.id,
+    })),
+    skipDuplicates: true,
+  });
+};
+
 /** Pulls only the writable fields off a request body. */
 const ingredientInput = (body: Record<string, unknown>) => ({
   nameNl: body.nameNl as string,
@@ -173,6 +219,7 @@ export const createIngredient = async (req: Request, res: Response, next: NextFu
     const ingredient = await prisma.ingredient.create({
       data: { slug: req.body.slug, ...ingredientInput(req.body) },
     });
+    await syncDerivedAliases(ingredient);
     invalidateCatalogCache();
     res.json({ data: ingredient });
   } catch (e) {
@@ -193,6 +240,9 @@ export const updateIngredient = async (req: Request, res: Response, next: NextFu
       where: { slug: req.params.slug },
       data: ingredientInput(req.body),
     });
+    // A rename adds the new spelling; the old one stays, which is usually
+    // what you want - recipes still carrying it keep matching.
+    await syncDerivedAliases(ingredient);
     invalidateCatalogCache();
     res.json({ data: ingredient });
   } catch (e) {
