@@ -50,9 +50,15 @@ model Recipe {
   isHouseRecipe  Boolean  @default(false)
   isChildFriendly Boolean  @default(false)
   isVegetarian   Boolean  @default(false)
+  isVegan        Boolean  @default(false)
+  /// False once the flags above have been worked out from the ingredients
+  /// rather than set by hand. A recipe with an unlinked or unknown ingredient
+  /// cannot be judged, so its flags stay the user's own.
+  dietFlagsDerived Boolean @default(false)
   belongsToId    String
   belongsTo      User     @relation(fields: [belongsToId], references: [id])
   savedBy        SavedRecipe[]
+  ingredientLinks RecipeIngredient[]
 
   @@unique([id, belongsToId])
   @@index([isPublic, isHouseRecipe])
@@ -113,9 +119,26 @@ model Ingredient {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  aliases IngredientAlias[]
+  aliases     IngredientAlias[]
+  recipeLinks RecipeIngredient[]
 
   @@index([categoryId])
+}
+
+/// Which ingredients a recipe uses, derived from Recipe.ingredients.
+///
+/// Deliberately duplicated: the JSON column stays the source of truth, since
+/// it holds order, amounts, units and custom text that the form is built on.
+/// This exists only to be queryable - filtering by ingredient against a JSON
+/// column is unindexed and awkward - and can be rebuilt from it at any time.
+model RecipeIngredient {
+  recipeId     Int
+  ingredientId String
+  recipe       Recipe     @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+
+  @@id([recipeId, ingredientId])
+  @@index([ingredientId])
 }
 
 /// Alternative spellings that resolve to one ingredient. This is how plurals

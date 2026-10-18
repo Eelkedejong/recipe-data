@@ -262,6 +262,7 @@ export const SUGGESTIONS: Suggestion[] = [
   { slug: 'shoarma', nameNl: 'shoarmavlees', category: 'meat-fish', baseUnit: 'g', ...meat, aliases: ['shoarma', 'shoarmavlees'] },
   { slug: 'kipdijfilet', nameNl: 'kipdijfilet', category: 'meat-fish', baseUnit: 'g', ...meat, aliases: ['kipdijfilet'] },
   { slug: 'kipreepjes', nameNl: 'kipreepjes', category: 'meat-fish', baseUnit: 'g', ...meat, aliases: ['kipreepjes', 'kipstukjes', 'gerookte kipreepjes', 'kip'] },
+  { slug: 'vegetarische-kipstukjes', nameNl: 'vegetarische kipstukjes', category: 'frozen', baseUnit: 'g', ...veg, aliases: ['vegetarische kipstukjes', 'vegetarische kipreepjes', 'vega kipstukjes'] },
   { slug: 'runderreepjes', nameNl: 'runderreepjes', category: 'meat-fish', baseUnit: 'g', ...meat, aliases: ['runderreepjes'] },
   { slug: 'hamblokjes', nameNl: 'hamblokjes', category: 'meat-fish', baseUnit: 'g', ...meat, aliases: ['hamblokjes', 'ham'] },
   { slug: 'surimi', nameNl: 'surimi', category: 'meat-fish', baseUnit: 'g', ...meat, aliases: ['surimi'] },

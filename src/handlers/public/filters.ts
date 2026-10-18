@@ -133,3 +133,18 @@ export const getRecipeCuisines = async (req: Request, res: Response, next: NextF
     next(e);
   }
 };
+/** Ingredients used by public recipes, for the public filter UI. */
+export const getRecipeIngredients = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const used = await prisma.ingredient.findMany({
+      where: { recipeLinks: { some: { recipe: { isPublic: true } } } },
+      orderBy: { nameNl: 'asc' },
+      select: { slug: true, nameNl: true, nameNlPlural: true }
+    });
+
+    res.json({ data: used });
+  } catch (e) {
+    e.type = 'next';
+    next(e);
+  }
+};

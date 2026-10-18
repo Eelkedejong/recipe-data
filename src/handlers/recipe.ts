@@ -1,5 +1,6 @@
 import prisma from "../db";
 import { Request, Response, NextFunction } from 'express';
+import { syncRecipe } from '../modules/recipe-ingredients';
 
 
 /**
@@ -42,6 +43,10 @@ export const getRecipes = async (req: Request, res: Response, next: NextFunction
     const isChildFriendly = req.query.isChildFriendly ? req.query.isChildFriendly === 'true' : undefined;
     const isVegetarian = req.query.isVegetarian ? req.query.isVegetarian === 'true' : undefined;
     const search = req.query.search ? (req.query.search as string).split(',') : [];
+    const ingredients = req.query.ingredients ? req.query.ingredients.toString().split(',') : [];
+    const excludeIngredients = req.query.excludeIngredients
+      ? req.query.excludeIngredients.toString().split(',')
+      : [];
     const page = req.query.page ? parseInt(req.query.page as string) : 1;
     const limit = req.query.limit ? parseInt(req.query.limit as string) : 12;
     const offset = (page - 1) * limit;
@@ -83,6 +88,24 @@ export const getRecipes = async (req: Request, res: Response, next: NextFunction
       conditions.push({ isChildFriendly });
     }
     
+    // Both filters go through the derived index rather than the JSON column,
+    // which is why that table exists. Slugs rather than ids, so the query
+    // string stays readable and survives a reseed.
+    if (ingredients.length > 0) {
+      // Every named ingredient must be present, not just one of them.
+      conditions.push({
+        AND: ingredients.map((slug) => ({
+          ingredientLinks: { some: { ingredient: { slug } } }
+        }))
+      });
+    }
+
+    if (excludeIngredients.length > 0) {
+      conditions.push({
+        ingredientLinks: { none: { ingredient: { slug: { in: excludeIngredients } } } }
+      });
+    }
+
     if (isVegetarian !== undefined) {
       conditions.push({ isVegetarian });
     }
@@ -192,7 +215,11 @@ export const createRecipe = async (req: Request, res: Response, next: NextFuncti
       }
     })
 
-    res.json({data: recipe})
+    // The ingredient index and the diet flags are both derived from the
+    // ingredients, so they are kept in step here rather than by a later job.
+    const dietFlags = await syncRecipe(recipe.id, req.body.ingredients)
+
+    res.json({data: { ...recipe, ...(dietFlags ?? {}) }})
   } catch (e) {
     e.type = 'next'
     next(e)
@@ -241,7 +268,9 @@ export const updateRecipe = async (req: Request, res: Response, next: NextFuncti
       }
     })
 
-    res.json({data: updatedRecipe})
+    const dietFlags = await syncRecipe(updatedRecipe.id, req.body.ingredients)
+
+    res.json({data: { ...updatedRecipe, ...(dietFlags ?? {}) }})
   } catch (e) {
     e.type = 'next'
     next(e)

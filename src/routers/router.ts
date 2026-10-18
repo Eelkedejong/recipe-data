@@ -3,7 +3,7 @@ import { body, oneOf, validationResult } from "express-validator";
 import { handleInputErrors } from '../modules/errors'
 import { getRecipes, getRecipe, updateRecipe, createRecipe, deleteRecipe } from '../handlers/recipe';
 import { createShoppingList, deleteShoppingList, getShoppingList, updateShoppingListRecipes, updateShoppingListItems, removeRecipeFromShoppingList, getShoppingListView, updateShoppingListState, refineShoppingList } from '../handlers/shopping-list';
-import { getRecipeTypes, getRecipeTags, getRecipeDishTypes, getRecipeCuisines } from '../handlers/filters';
+import { getRecipeTypes, getRecipeTags, getRecipeDishTypes, getRecipeCuisines, getRecipeIngredients } from '../handlers/filters';
 import { createIngredient, updateIngredient, deleteIngredient, setAliases, createCategory, updateCategory } from '../handlers/ingredient';
 import { requireAdmin } from '../modules/auth';
 import { getMe } from '../handlers/user';
@@ -61,6 +61,7 @@ router.get('/recipe-tags', getRecipeTags)
 router.get('/recipe-types', getRecipeTypes)
 router.get('/recipe-dish-types', getRecipeDishTypes)
 router.get('/recipe-cuisines', getRecipeCuisines)
+router.get('/recipe-ingredients', getRecipeIngredients)
 
 // Ingredient catalog writes. Reading is public (see public.ts); only admins
 // may change the catalog, since it is shared by every user.

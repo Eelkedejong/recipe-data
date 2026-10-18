@@ -116,3 +116,28 @@ export const getRecipeTags = async (req: Request, res: Response, next: NextFunct
     next(e);
   }
 };
+/**
+ * Returns the ingredients that actually appear in the user's recipes.
+ *
+ * The filter UI is built from this rather than from the whole catalog, so it
+ * never offers a choice that would return nothing.
+ */
+export const getRecipeIngredients = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const used = await prisma.ingredient.findMany({
+      where: { recipeLinks: { some: { recipe: { belongsToId: req.user.id } } } },
+      orderBy: { nameNl: 'asc' },
+      select: {
+        slug: true,
+        nameNl: true,
+        nameNlPlural: true,
+        _count: { select: { recipeLinks: true } }
+      }
+    });
+
+    res.json({ data: used });
+  } catch (e) {
+    e.type = 'next';
+    next(e);
+  }
+};
