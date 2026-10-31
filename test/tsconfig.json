@@ -1,0 +1,16 @@
+{
+  // The root tsconfig only includes src/**, because the build compiles that
+  // into dist/ with rootDir src. Tests sit outside it, so without this file
+  // the editor type-checks them against TypeScript's defaults - which have no
+  // node types, hence "Cannot find name 'node:test'".
+  //
+  // Not used by any script: `npm test` runs through tsx, and `npm run build`
+  // still uses the root config, so tests are never emitted into dist/.
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "..",
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": ["./**/*.ts", "../src/**/*.ts"]
+}

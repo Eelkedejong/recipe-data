@@ -1,4 +1,12 @@
-import prisma from '../db';
+import defaultPrisma from '../db';
+
+/**
+ * The client to work through. Defaults to the application's own, but a script
+ * or test targeting another database must pass its client: reaching for the
+ * singleton regardless is how index rows once went to the wrong database
+ * entirely. Same contract as modules/recipe-ingredients.ts.
+ */
+type Db = typeof defaultPrisma;
 import { mergeQuantities, formatQuantity } from './units';
 
 /**
@@ -75,7 +83,10 @@ const keyFor = (row: RecipeRow, name: string): string =>
     ? `id:${row.ingredientId}`
     : `text:${name.toLowerCase()}`;
 
-export const generateShoppingList = async (userId: string): Promise<GeneratedList> => {
+export const generateShoppingList = async (
+  userId: string,
+  prisma: Db = defaultPrisma,
+): Promise<GeneratedList> => {
   const list = await prisma.shoppingList.findFirst({
     where: { belongsToId: userId },
     select: { recipes: true },
@@ -241,7 +252,7 @@ export const generateShoppingList = async (userId: string): Promise<GeneratedLis
  * Every list is looked at rather than just the recipe owner's: a public recipe
  * can sit on someone else's list, and that list has the same stale cache.
  */
-const listsHolding = async (recipeId: number) => {
+const listsHolding = async (recipeId: number, prisma: Db = defaultPrisma) => {
   const lists = await prisma.shoppingList.findMany({
     select: { id: true, belongsToId: true, recipes: true },
   });
@@ -261,11 +272,14 @@ const listsHolding = async (recipeId: number) => {
  * different amount, a changed serving count - never reaches the grocery list
  * of anyone who already had it.
  */
-export const refreshListsContaining = async (recipeId: number): Promise<number> => {
-  const holding = await listsHolding(recipeId);
+export const refreshListsContaining = async (
+  recipeId: number,
+  prisma: Db = defaultPrisma,
+): Promise<number> => {
+  const holding = await listsHolding(recipeId, prisma);
 
   for (const list of holding) {
-    await refreshShoppingList(list.belongsToId);
+    await refreshShoppingList(list.belongsToId, prisma);
   }
 
   return holding.length;
@@ -278,8 +292,11 @@ export const refreshListsContaining = async (recipeId: number): Promise<number> 
  * recipe is deleted, and its ingredients would otherwise sit on somebody's
  * grocery list for good.
  */
-export const removeRecipeFromLists = async (recipeId: number): Promise<number> => {
-  const holding = await listsHolding(recipeId);
+export const removeRecipeFromLists = async (
+  recipeId: number,
+  prisma: Db = defaultPrisma,
+): Promise<number> => {
+  const holding = await listsHolding(recipeId, prisma);
 
   for (const list of holding) {
     const entries = Array.isArray(list.recipes) ? (list.recipes as { id?: unknown }[]) : [];
@@ -289,19 +306,53 @@ export const removeRecipeFromLists = async (recipeId: number): Promise<number> =
       data: { recipes: { set: entries.filter((entry) => entry?.id !== recipeId) as never } },
     });
 
-    await refreshShoppingList(list.belongsToId);
+    await refreshShoppingList(list.belongsToId, prisma);
   }
 
   return holding.length;
 };
 
-/** Regenerates and stores the list. Called whenever its recipes change. */
-export const refreshShoppingList = async (userId: string): Promise<GeneratedList> => {
-  const generated = await generateShoppingList(userId);
+/**
+ * Regenerates and stores the list. Called whenever its recipes change.
+ *
+ * Also drops ticks for lines the rebuild no longer contains. Item keys are
+ * deliberately stable across rebuilds - `id:<ingredientId>` for catalog rows -
+ * which is what lets a tick survive an unrelated edit. The same stability
+ * means a tick left behind by a removed recipe would attach itself to the next
+ * recipe using that ingredient, so the line would come back already ticked and
+ * be walked past in the shop. Ticks are therefore pruned to what is actually
+ * on the list.
+ */
+export const refreshShoppingList = async (
+  userId: string,
+  prisma: Db = defaultPrisma,
+): Promise<GeneratedList> => {
+  const generated = await generateShoppingList(userId, prisma);
+
+  const existing = await prisma.shoppingList.findFirst({
+    where: { belongsToId: userId },
+    select: { listState: true },
+  });
+
+  const state = existing?.listState as unknown as ListState | null;
+  const liveKeys = new Set(
+    generated.groups.flatMap((group) => group.items.map((item) => item.key)),
+  );
+
+  // Only written when there is something to drop, so an ordinary rebuild does
+  // not rewrite listState for no reason.
+  const ticked = state?.ticked ?? {};
+  const kept = Object.fromEntries(
+    Object.entries(ticked).filter(([key]) => liveKeys.has(key)),
+  );
+  const prunedAny = Object.keys(kept).length !== Object.keys(ticked).length;
 
   await prisma.shoppingList.updateMany({
     where: { belongsToId: userId },
-    data: { generatedItems: generated as never },
+    data: {
+      generatedItems: generated as never,
+      ...(prunedAny ? { listState: { ...state, ticked: kept } as never } : {}),
+    },
   });
 
   return generated;
@@ -347,6 +398,7 @@ export interface ViewGroup {
  */
 export const buildListView = async (
   userId: string,
+  prisma: Db = defaultPrisma,
 ): Promise<{
   groups: ViewGroup[];
   unlinkedCount: number;
@@ -366,7 +418,7 @@ export const buildListView = async (
   const generated =
     stored && stored.version === GENERATED_VERSION
       ? stored
-      : await refreshShoppingList(userId);
+      : await refreshShoppingList(userId, prisma);
   const state = {
     ...EMPTY_STATE,
     ...((list?.listState as unknown as ListState | null) ?? {}),

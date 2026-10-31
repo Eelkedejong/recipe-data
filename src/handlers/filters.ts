@@ -1,143 +1,15 @@
-import prisma from "../db";
-import { Request, Response, NextFunction } from 'express';
+import { facetHandler, usedIngredientsHandler } from '../modules/recipe-facets';
 
 /**
- * Returns all unique meal types from the user's recipes
- * This function is used to generate the meal type filter in the frontend
- * 
- * @param req - The request object.
- * @param res - The response object.
- * @param next - The next function.
- */
-export const getRecipeTypes = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const recipes = await prisma.recipe.findMany({
-      where: {
-        belongsToId: req.user.id
-      },
-      select: {
-        typeOfMeal: true
-      }
-    });
-
-    // Flatten the array of arrays and get unique values
-    const uniqueTypes = Array.from(new Set(recipes.flatMap(recipe => recipe.typeOfMeal)));
-
-    res.json({data: uniqueTypes});
-  } catch (e) {
-    e.type = 'next';
-    next(e);
-  }
-};
-
-/**
- * Returns all unique dish types from the user's recipes
- * This function is used to generate the dish type filter in the frontend
- * 
- * @param req - The request object.
- * @param res - The response object.
- * @param next - The next function.
- */
-export const getRecipeDishTypes = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const recipes = await prisma.recipe.findMany({
-      where: {
-        belongsToId: req.user.id
-      },
-      select: {
-        typeOfDish: true
-      }
-    });
-
-    // Flatten the array of arrays and get unique values
-    const uniqueDishTypes = Array.from(new Set(recipes.flatMap(recipe => recipe.typeOfDish)));
-
-    res.json({data: uniqueDishTypes});
-  } catch (e) {
-    e.type = 'next';
-    next(e);
-  }
-};
-
-/**
- * Returns all unique cuisines from the user's recipes
- * This function is used to generate the cuisine filter in the frontend
- * 
- * @param req - The request object.
- * @param res - The response object.
- * @param next - The next function.
- */
-export const getRecipeCuisines = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const recipes = await prisma.recipe.findMany({
-      where: {
-        belongsToId: req.user.id
-      },
-      select: {
-        cuisine: true
-      }
-    });
-
-    // Flatten the array of arrays and get unique values
-    const uniqueCuisines = Array.from(new Set(recipes.flatMap(recipe => recipe.cuisine)));
-
-    res.json({data: uniqueCuisines});
-  } catch (e) {
-    e.type = 'next';
-    next(e);
-  }
-};
-
-/**
- * Returns all unique tags from the user's recipes
- * This function is used to generate the tag filter in the frontend
- * 
- * @param req - The request object.
- * @param res - The response object.
- * @param next - The next function.
- */
-export const getRecipeTags = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const tags = await prisma.recipe.findMany({
-      where: {
-        belongsToId: req.user.id
-      },
-      select: {
-        tags: true
-      }
-    });
-
-    // Create a new array with only the unique tags
-    const uniqueTags = Array.from(new Set(tags.flatMap(item => item.tags)));
-
-    res.json({data: uniqueTags});
-  } catch (e) {
-    e.type = 'next';
-    next(e);
-  }
-};
-/**
- * Returns the ingredients that actually appear in the user's recipes.
+ * Filter lists for the signed-in user's own recipes.
  *
- * The filter UI is built from this rather than from the whole catalog, so it
- * never offers a choice that would return nothing.
+ * The public equivalents live in handlers/public/filters.ts and differ only
+ * in the scope below; everything else comes from modules/recipe-facets.ts.
  */
-export const getRecipeIngredients = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const used = await prisma.ingredient.findMany({
-      where: { recipeLinks: { some: { recipe: { belongsToId: req.user.id } } } },
-      orderBy: { nameNl: 'asc' },
-      select: {
-        slug: true,
-        nameNl: true,
-        nameNlPlural: true,
-        _count: { select: { recipeLinks: true } }
-      }
-    });
+const mine = (req: { user?: { id: string } }) => ({ belongsToId: req.user.id });
 
-    res.json({ data: used });
-  } catch (e) {
-    e.type = 'next';
-    next(e);
-  }
-};
+export const getRecipeTypes = facetHandler('typeOfMeal', mine);
+export const getRecipeDishTypes = facetHandler('typeOfDish', mine);
+export const getRecipeCuisines = facetHandler('cuisine', mine);
+export const getRecipeTags = facetHandler('tags', mine);
+export const getRecipeIngredients = usedIngredientsHandler(mine);
