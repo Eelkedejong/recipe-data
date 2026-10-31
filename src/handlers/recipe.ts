@@ -2,6 +2,8 @@ import prisma from "../db";
 import { Request, Response, NextFunction } from 'express';
 import { syncRecipe } from '../modules/recipe-ingredients';
 import { removeRecipeFromLists, refreshListsContaining } from '../modules/shopping-list';
+import { withRowIds } from '../modules/recipe-rows'
+import { resolveIsPublic, PUBLISH_REFUSED } from '../modules/publishing'
 
 
 /**
@@ -185,41 +187,6 @@ export const getRecipe = async (req, res, next) => {
 }
 
 /**
- * Makes sure every ingredient row has an id that is unique within the recipe.
- *
- * A shopping list remembers unticked rows by id, so an id has to keep meaning
- * the same row. Ids that arrive are therefore kept exactly as sent and only
- * missing or colliding ones are filled in - never renumbered, which would move
- * an exclusion onto a different ingredient.
- */
-const withRowIds = (ingredients: unknown): unknown => {
-  if (!Array.isArray(ingredients)) return ingredients
-
-  const taken = new Set<number>()
-  let next =
-    ingredients.reduce(
-      (highest: number, row) =>
-        Number.isInteger((row as { id?: unknown })?.id) && (row as { id: number }).id > highest
-          ? (row as { id: number }).id
-          : highest,
-      0,
-    ) + 1
-
-  return ingredients.map((row) => {
-    const stored = (row as { id?: unknown })?.id
-
-    if (typeof stored === 'number' && Number.isInteger(stored) && stored > 0 && !taken.has(stored)) {
-      taken.add(stored)
-      return row
-    }
-
-    const id = next++
-    taken.add(id)
-    return { ...(row as object), id }
-  })
-}
-
-/**
  * Creates a new recipe.
  * 
  * @param req - The request object.
@@ -229,6 +196,16 @@ const withRowIds = (ingredients: unknown): unknown => {
 export const createRecipe = async (req: Request, res: Response, next: NextFunction) => {
   const url = req.body.name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '')
   const ingredients = withRowIds(req.body.ingredients)
+
+  // Only admins put recipes on the public side. Refused rather than silently
+  // downgraded, so a future admin UI cannot quietly fail to publish.
+  const publishing = await resolveIsPublic(req.user.id, req.body.isPublic)
+
+  if (!publishing.allowed) {
+    res.status(403)
+    res.json({ message: PUBLISH_REFUSED })
+    return
+  }
 
   try {
     const recipe = await prisma.recipe.create({
@@ -246,7 +223,7 @@ export const createRecipe = async (req: Request, res: Response, next: NextFuncti
         isChildFriendly: req.body.isChildFriendly || false,
         isVegetarian: req.body.isVegetarian || false,
         ingredients: ingredients as never,
-        isPublic: req.body.isPublic || false,
+        isPublic: publishing.isPublic ?? false,
         steps: req.body.steps,
         belongsToId: req.user.id
       }
@@ -280,6 +257,14 @@ export const updateRecipe = async (req: Request, res: Response, next: NextFuncti
 
   const ingredients = withRowIds(req.body.ingredients)
 
+  const publishing = await resolveIsPublic(req.user.id, req.body.isPublic)
+
+  if (!publishing.allowed) {
+    res.status(403)
+    res.json({ message: PUBLISH_REFUSED })
+    return
+  }
+
   try {
     const updatedRecipe = await prisma.recipe.update({
       where: {
@@ -302,7 +287,7 @@ export const updateRecipe = async (req: Request, res: Response, next: NextFuncti
         isChildFriendly: req.body.isChildFriendly,
         isVegetarian: req.body.isVegetarian,
         ingredients: ingredients as never,
-        isPublic: req.body.isPublic,
+        isPublic: publishing.isPublic,
         steps: req.body.steps,
       }
     })
