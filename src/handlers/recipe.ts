@@ -4,6 +4,18 @@ import { syncRecipe } from '../modules/recipe-ingredients';
 import { removeRecipeFromLists, refreshListsContaining } from '../modules/shopping-list';
 import { withRowIds } from '../modules/recipe-rows'
 import { resolveIsPublic, PUBLISH_REFUSED } from '../modules/publishing'
+import { buildRecipeWhere, parsePaging, RECIPE_ORDER } from '../modules/recipe-query'
+
+/**
+ * The url-safe form of a recipe name.
+ *
+ * Called inside the try blocks below: it used to run before them, so a
+ * request with no name threw a TypeError that nothing caught and the client
+ * got a 500 where a 400 was the right answer. The validator now requires a
+ * name, and this stays defensive anyway.
+ */
+const toUrlSlug = (name: unknown): string =>
+  String(name ?? '').toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '')
 
 
 /**
@@ -37,123 +49,24 @@ import { resolveIsPublic, PUBLISH_REFUSED } from '../modules/publishing'
  */
 export const getRecipes = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const ids = req.query.ids ? req.query.ids.toString().split(',') : []; 
-    const tags = req.query.tags ? req.query.tags.toString().split(',') : [];
-    const typeOfMeal = req.query.typeOfMeal ? req.query.typeOfMeal.toString().split(',') : [];
-    const typeOfDish = req.query.typeOfDish ? req.query.typeOfDish.toString().split(',') : [];
-    const cuisine = req.query.cuisine ? req.query.cuisine.toString().split(',') : [];
-    const time = req.query.time ? parseInt(req.query.time as string) : 0;
-    const isChildFriendly = req.query.isChildFriendly ? req.query.isChildFriendly === 'true' : undefined;
-    const isVegetarian = req.query.isVegetarian ? req.query.isVegetarian === 'true' : undefined;
-    const search = req.query.search ? (req.query.search as string).split(',') : [];
-    const ingredients = req.query.ingredients ? req.query.ingredients.toString().split(',') : [];
-    const excludeIngredients = req.query.excludeIngredients
-      ? req.query.excludeIngredients.toString().split(',')
-      : [];
-    const page = req.query.page ? parseInt(req.query.page as string) : 1;
-    const limit = req.query.limit ? parseInt(req.query.limit as string) : 12;
-    const offset = (page - 1) * limit;
-
-    // Build up conditions for the where clause
-    const conditions = [];
-    
-    if (ids.length > 0) {
-      // Anything that is not a number is dropped rather than passed on as NaN,
-      // which Prisma rejects outright - one bad id used to fail the whole
-      // request instead of just not matching.
-      const numericIds = ids.map((id) => parseInt(id)).filter(Number.isInteger);
-      if (numericIds.length > 0) {
-        conditions.push({ id: { in: numericIds } });
-      }
-    }
-    
-    if (tags.length > 0) {
-      conditions.push({ tags: { hasEvery: tags } });
-    }
-    
-    if (typeOfMeal.length > 0) {
-      conditions.push({ typeOfMeal: { hasSome: typeOfMeal } });
-    }
-    
-    if (typeOfDish.length > 0) {
-      conditions.push({ typeOfDish: { hasSome: typeOfDish } });
-    }
-    
-    if (cuisine.length > 0) {
-      conditions.push({ cuisine: { hasSome: cuisine } });
-    }
-    
-    if (time > 0) {
-      conditions.push({ time: { lte: time } });
-    }
-    
-    if (isChildFriendly !== undefined) {
-      conditions.push({ isChildFriendly });
-    }
-    
-    // Both filters go through the derived index rather than the JSON column,
-    // which is why that table exists. Slugs rather than ids, so the query
-    // string stays readable and survives a reseed.
-    if (ingredients.length > 0) {
-      // Every named ingredient must be present, not just one of them.
-      conditions.push({
-        AND: ingredients.map((slug) => ({
-          ingredientLinks: { some: { ingredient: { slug } } }
-        }))
-      });
-    }
-
-    if (excludeIngredients.length > 0) {
-      conditions.push({
-        ingredientLinks: { none: { ingredient: { slug: { in: excludeIngredients } } } }
-      });
-    }
-
-    if (isVegetarian !== undefined) {
-      conditions.push({ isVegetarian });
-    }
-    
-    if (search.length > 0) {
-      conditions.push({
-        OR: [
-          { name: { contains: search[0], mode: 'insensitive' } },
-          { description: { contains: search[0], mode: 'insensitive' } },
-          { tags: { hasSome: search.map(tag => tag.toLowerCase()) } },
-          { tags: { hasSome: search.map(tag => tag.charAt(0).toUpperCase() + tag.slice(1)) } }
-        ]
-      });
-    }
-    
-    // Always add the user ID condition
-    conditions.push({ belongsToId: req.user.id });
-
-    // Create a proper where clause with the conditions
-    const whereInput = conditions.length > 0 ? { AND: conditions } : {};
-
-    // First, get the total count of recipes matching the filters
-    const totalCount = await prisma.recipe.count({
-      where: whereInput
+    // Same filter builder as the public listing in handlers/public/recipe.ts.
+    // The only difference between the two is the scope below.
+    const where = buildRecipeWhere(req.query as Record<string, unknown>, {
+      belongsToId: req.user.id,
     });
+    const { page, limit, offset } = parsePaging(req.query as Record<string, unknown>);
 
-    // Then get the paginated recipes
-    const recipes = await prisma.recipe.findMany({
-      where: whereInput,
-      orderBy: {
-        id: 'desc'
-      },
-      skip: offset,
-      take: limit
-    });
+    const [recipes, count] = await Promise.all([
+      prisma.recipe.findMany({
+        where,
+        orderBy: RECIPE_ORDER,
+        skip: offset,
+        take: limit,
+      }),
+      prisma.recipe.count({ where }),
+    ]);
 
-    const totalPages = Math.ceil(totalCount / limit);
-
-    res.json({
-      data: recipes, 
-      count: totalCount, 
-      page, 
-      limit, 
-      totalPages
-    });
+    res.json({ data: recipes, count, page, limit, totalPages: Math.ceil(count / limit) });
   } catch (e) {
     e.type = 'next';
     next(e);
@@ -161,12 +74,11 @@ export const getRecipes = async (req: Request, res: Response, next: NextFunction
 };
 
 /**
- * Retrieves a recipe by its ID.
+ * Retrieves one of the signed-in user's own recipes.
  *
- * @param {Request} req - The request object.
- * @param {Response} res - The response object.
- * @param {NextFunction} next - The next function.
- * @returns {Promise<void>} - A promise that resolves when the recipe is retrieved.
+ * @param req - The request object.
+ * @param res - The response object.
+ * @param next - The next function.
  */
 export const getRecipe = async (req, res, next) => {
   try {
@@ -178,6 +90,13 @@ export const getRecipe = async (req, res, next) => {
         belongsToId: req.user.id
       }
     })
+
+    // Used to answer 200 with data: null, which a client cannot tell apart
+    // from a recipe that exists but is empty. The public handler already
+    // answered 404 here.
+    if (!recipe) {
+      return res.status(404).json({ message: 'Recipe not found' })
+    }
 
     res.json({data: recipe})
   } catch (e) {
@@ -194,20 +113,18 @@ export const getRecipe = async (req, res, next) => {
  * @param next - The next function.
  */
 export const createRecipe = async (req: Request, res: Response, next: NextFunction) => {
-  const url = req.body.name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '')
-  const ingredients = withRowIds(req.body.ingredients)
-
-  // Only admins put recipes on the public side. Refused rather than silently
-  // downgraded, so a future admin UI cannot quietly fail to publish.
-  const publishing = await resolveIsPublic(req.user.id, req.body.isPublic)
-
-  if (!publishing.allowed) {
-    res.status(403)
-    res.json({ message: PUBLISH_REFUSED })
-    return
-  }
-
   try {
+    const url = toUrlSlug(req.body.name)
+    const ingredients = withRowIds(req.body.ingredients)
+
+    // Only admins put recipes on the public side. Refused rather than silently
+    // downgraded, so a future admin UI cannot quietly fail to publish.
+    const publishing = await resolveIsPublic(req.user.id, req.body.isPublic)
+
+    if (!publishing.allowed) {
+      return res.status(403).json({ message: PUBLISH_REFUSED })
+    }
+
     const recipe = await prisma.recipe.create({
       data: {
         name: req.body.name,
@@ -249,23 +166,18 @@ export const createRecipe = async (req: Request, res: Response, next: NextFuncti
  */
 export const updateRecipe = async (req: Request, res: Response, next: NextFunction) => {
   // convert the name in a url
-  let url = req.body.url; // Store the current URL
-
-  if (req.body.name) {
-    url = req.body.name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, ''); // Update the URL if the name is provided
-  }
-
-  const ingredients = withRowIds(req.body.ingredients)
-
-  const publishing = await resolveIsPublic(req.user.id, req.body.isPublic)
-
-  if (!publishing.allowed) {
-    res.status(403)
-    res.json({ message: PUBLISH_REFUSED })
-    return
-  }
-
   try {
+    // Keep the stored url unless a new name came with the request.
+    const url = req.body.name ? toUrlSlug(req.body.name) : req.body.url
+
+    const ingredients = withRowIds(req.body.ingredients)
+
+    const publishing = await resolveIsPublic(req.user.id, req.body.isPublic)
+
+    if (!publishing.allowed) {
+      return res.status(403).json({ message: PUBLISH_REFUSED })
+    }
+
     const updatedRecipe = await prisma.recipe.update({
       where: {
         id_belongsToId: {

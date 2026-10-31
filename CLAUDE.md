@@ -24,10 +24,16 @@ Two mounts, and the distinction matters:
 - `app.use('/public', publicRouter)` — signed-out, and per `PRODUCT.md` this
   is the hot path
 
-**When you add a capability to an authenticated recipe route, check whether
-the public one needs it too.** They are separate handlers with duplicated
-filter logic, which is exactly how ingredient filtering once shipped to only
-one of them.
+**The two recipe listings share their filter logic.** `modules/recipe-query.ts`
+builds the where clause; the handlers add only their own visibility scope
+(`belongsToId` for the authenticated one, `isPublic: true` for the public
+one). Add a filter there and both listings get it.
+
+They used to duplicate that logic and it drifted three times, so **do not
+reintroduce the duplication**. The rest of the surface is still paired by
+hand, though — the four filter endpoints exist twice, in `handlers/filters.ts`
+and `handlers/public/filters.ts`. For anything outside the listings, check
+whether the public side needs the same change.
 
 ## Prisma
 
@@ -154,7 +160,15 @@ Two conventions worth keeping:
 ```
 test/recipe-ingredients.db.test.ts   the derived index and diet flags
 test/shopping-list.db.test.ts        generation, scaling, exclusions, propagation
+test/publishing.db.test.ts           who may publish to the public site
+test/recipe-query.db.test.ts         the filter clauses against real Prisma
 ```
+
+`test/recipe-query.test.ts` is the parity suite and needs no database: the
+filter builder is pure, which is most of why the drift went unnoticed. Its
+database counterpart exists because a clause can have the right *shape* and
+still be rejected by Prisma or match the wrong rows — the ingredient filter
+nests an `AND` inside an `AND`.
 
 They **skip** unless `TEST_DATABASE_URL` is set, so `npm test` stays useful
 without the setup. `test/db-harness.ts` holds the client and fixtures, and
@@ -176,8 +190,12 @@ singleton's — which is the whole reason the setup is worth doing.
 
 ### Still not covered
 
-Route-level checks that the public and authenticated handlers filter
-identically. Everything else with real consequences now has a test.
+No tests go through HTTP. Handlers import the `src/db` singleton directly, so
+they cannot be pointed at the test database without overriding `DATABASE_URL`
+before import — the same trap the modules were fixed for, still present one
+layer up. Parity is covered at the module level instead, which is where the
+logic now lives; what remains untested is the wiring itself: routing,
+validators, auth middleware and status codes.
 
 ## Scripts
 

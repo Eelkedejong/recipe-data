@@ -19,10 +19,12 @@ router.get('/recipe', getRecipes)
 router.get('/recipe/:id', getRecipe)
 
 router.post('/recipe',
-  body('name').optional(),
+  // name and persons are required by the schema; marking them optional here
+  // meant a request without them failed as a 500 rather than a 400.
+  body('name').isString().trim().notEmpty(),
+  body('persons').isInt({ min: 1 }),
   body('description').optional(),
   body('image').optional(),
-  body('persons').optional(),
   body('tags').optional(),
   body('time').optional(),
   body('typeOfMeal').optional(),
@@ -37,10 +39,12 @@ router.post('/recipe',
 )
 
 router.put('/recipe/:id',
-  body('name').optional(),
+  // Partial updates are allowed, so these stay optional - but when they are
+  // sent they have to be usable.
+  body('name').optional().isString().trim().notEmpty(),
   body('description').optional(),
   body('image').optional(),
-  body('persons').optional(),
+  body('persons').optional().isInt({ min: 1 }),
   body('tags').optional(),
   body('time').optional(),
   body('typeOfMeal').optional(),
