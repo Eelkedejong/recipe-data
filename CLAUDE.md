@@ -262,15 +262,19 @@ catalog refactor.
   - #57 `Knoflook, peper zout`
   - #76 a dish name used as an ingredient
   - #77 `Macaroni groente 450 gram`
-- **develop and production have drifted** on the derived index: develop has
-  394 linked rows / 38 unlinked, production has 399 / 33. develop was
-  backfilled before the last catalog entries existed. `backfill-recipe-ingredients.ts --apply`
-  against develop evens them up. Both audit clean apart from this.
-- **`scripts/.DS_Store` is tracked in git.** Worth untracking.
+- **Fixed 2026-10-31: develop and production match again.** develop had been
+  backfilled before the last catalog entries existed (394 linked rows / 38
+  unlinked against production's 399 / 33). Both now audit identically — see
+  the baseline below.
+- **One public recipe has an empty string as a tag**, so the tag filter list
+  contains `""` and would render a blank chip. One recipe to fix by hand, or
+  filter it out when building the list.
 - **The develop Neon branch holds a full copy of production user data**,
   including another person's email address and bcrypt password hashes. It is
   a copy-on-write branch of production and was never scrubbed. Consider
-  deleting it, or at least do not treat it as non-sensitive.
+  deleting it, or at least do not treat it as non-sensitive. The `test`
+  branch is not affected: it was created schema-only and has never held real
+  data.
 
 ### Production baseline
 
