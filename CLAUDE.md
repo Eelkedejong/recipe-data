@@ -29,11 +29,16 @@ builds the where clause; the handlers add only their own visibility scope
 (`belongsToId` for the authenticated one, `isPublic: true` for the public
 one). Add a filter there and both listings get it.
 
-They used to duplicate that logic and it drifted three times, so **do not
-reintroduce the duplication**. The rest of the surface is still paired by
-hand, though — the four filter endpoints exist twice, in `handlers/filters.ts`
-and `handlers/public/filters.ts`. For anything outside the listings, check
-whether the public side needs the same change.
+The filter lists work the same way: `modules/recipe-facets.ts` holds the
+implementation, and `handlers/filters.ts` and `handlers/public/filters.ts`
+are now five lines each — a scope and five exports.
+
+**Do not reintroduce the duplication.** It drifted five times while the two
+sides were maintained by hand: ingredient filtering reached only the
+authenticated listing, the public listing lost its ordering, the public count
+stopped matching its own query, the two disagreed about empty boolean values,
+and only the public tags endpoint narrowed by the other filters. Anything the
+two routers share belongs in a module, with the scope passed in.
 
 ## Prisma
 
@@ -162,6 +167,7 @@ test/recipe-ingredients.db.test.ts   the derived index and diet flags
 test/shopping-list.db.test.ts        generation, scaling, exclusions, propagation
 test/publishing.db.test.ts           who may publish to the public site
 test/recipe-query.db.test.ts         the filter clauses against real Prisma
+test/recipe-facets.db.test.ts        the filter lists and their narrowing
 ```
 
 `test/recipe-query.test.ts` is the parity suite and needs no database: the
@@ -203,12 +209,22 @@ Run with `npx tsx scripts/<name>.ts`. Read-only ones are safe to reach for;
 the writing ones take `--apply` and should be run without it first.
 
 - `audit-catalog.ts` — read-only health check. Start here.
-- `verify-target.ts [--expect production|develop]` — which database am I on.
-- `rebuild-recipe-ingredients.ts` — rebuild the derived index.
-- `backfill-recipe-ingredients.ts` — link recipe text to catalog ingredients.
-- `copy-catalog.ts` — copy catalog between databases, preserving UUIDs.
-- `fix-ingredient-text.ts` — normalise recipe ingredient text. Deliberately
+- `verify-target.ts <connection string>` — which database am I on. Prints the
+  host and nothing else.
+- `backfill-recipe-ingredients.ts` — links recipe text to catalog
+  ingredients, and lists what matched nothing. **Re-run after adding catalog
+  entries**: its unmatched list is the queue for extending the catalog.
+- `rebuild-recipe-ingredients.ts` — rebuilds the derived index from the JSON.
+- `restore-recipe-ingredients.ts` — undoes a backfill from its backup.
+- `copy-catalog.ts` — copies the catalog between databases, preserving UUIDs.
+- `fix-ingredient-text.ts` — normalises recipe ingredient text. Deliberately
   skips rows needing human judgement.
+- `set-admin.ts` — promotes a user to ADMIN.
+- `shopping-list-demo.ts`, `users-report.ts` — small read-only dev aids.
+
+The one-off migration scripts (`extract-ingredients`, `seed-ingredients`,
+`reassign-demo-recipes`, `clean-shopping-lists`) were removed once they had
+served their purpose. Git has them if one is ever needed again.
 
 `scripts/out/` is gitignored. Do not treat anything in it as recoverable —
 the seed CSV was once silently overwritten and git could not get it back.
