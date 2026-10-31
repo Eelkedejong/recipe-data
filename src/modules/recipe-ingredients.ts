@@ -1,4 +1,12 @@
-import prisma from '../db';
+import defaultPrisma from '../db';
+
+/**
+ * The client to work through. Defaults to the application's own, but a script
+ * targeting another database must pass its client: these functions used to
+ * reach for the singleton regardless, so a script pointed at production wrote
+ * its index rows to whatever DATABASE_URL happened to name instead.
+ */
+type Db = typeof defaultPrisma;
 
 /**
  * Keeps the RecipeIngredient index and a recipe's diet flags in step with its
@@ -37,6 +45,7 @@ const linkedIds = (ingredients: unknown): string[] => {
 export const syncRecipeIngredients = async (
   recipeId: number,
   ingredients: unknown,
+  prisma: Db = defaultPrisma,
 ): Promise<void> => {
   const ids = linkedIds(ingredients);
 
@@ -76,6 +85,7 @@ export interface DietFlags {
  */
 export const deriveDietFlags = async (
   ingredients: unknown,
+  prisma: Db = defaultPrisma,
 ): Promise<DietFlags | null> => {
   if (!Array.isArray(ingredients) || ingredients.length === 0) return null;
 
@@ -115,10 +125,11 @@ export const deriveDietFlags = async (
 export const syncRecipe = async (
   recipeId: number,
   ingredients: unknown,
+  prisma: Db = defaultPrisma,
 ): Promise<DietFlags | null> => {
-  await syncRecipeIngredients(recipeId, ingredients);
+  await syncRecipeIngredients(recipeId, ingredients, prisma);
 
-  const flags = await deriveDietFlags(ingredients);
+  const flags = await deriveDietFlags(ingredients, prisma);
   if (!flags) return null;
 
   await prisma.recipe.update({

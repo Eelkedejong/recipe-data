@@ -50,7 +50,7 @@ const main = async () => {
     );
     linkRows += ids.size;
 
-    const flags = await deriveDietFlags(recipe.ingredients);
+    const flags = await deriveDietFlags(recipe.ingredients, prisma);
     if (!flags) continue;
 
     judged += 1;
@@ -64,14 +64,14 @@ const main = async () => {
       );
     }
 
-    if (apply) await syncRecipeIngredients(recipe.id, recipe.ingredients);
+    if (apply) await syncRecipeIngredients(recipe.id, recipe.ingredients, prisma);
   }
 
   if (apply) {
     // Recipes that cannot be judged still need their index rows.
     for (const recipe of recipes) {
-      const flags = await deriveDietFlags(recipe.ingredients);
-      if (!flags) await syncRecipeIngredients(recipe.id, recipe.ingredients);
+      const flags = await deriveDietFlags(recipe.ingredients, prisma);
+      if (!flags) await syncRecipeIngredients(recipe.id, recipe.ingredients, prisma);
       else {
         await prisma.recipe.update({
           where: { id: recipe.id },
