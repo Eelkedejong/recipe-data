@@ -20,6 +20,10 @@ export const getRecipes = async (req: Request, res: Response, next: NextFunction
     const isChildFriendly = req.query.isChildFriendly === 'true';
     const isVegetarian = req.query.isVegetarian === 'true';
     const search = req.query.search ? (req.query.search as string).split(',') : [];
+    const ingredients = req.query.ingredients ? req.query.ingredients.toString().split(',') : [];
+    const excludeIngredients = req.query.excludeIngredients
+      ? req.query.excludeIngredients.toString().split(',')
+      : [];
     const page = req.query.page ? parseInt(req.query.page as string) : 1;
     const limit = req.query.limit ? parseInt(req.query.limit as string) : 12;
     const offset = (page - 1) * limit;
@@ -58,6 +62,22 @@ export const getRecipes = async (req: Request, res: Response, next: NextFunction
       whereClause.isVegetarian = isVegetarian;
     }
     
+    // Both filters go through the derived index rather than the JSON column,
+    // matching the authenticated handler in handlers/recipe.ts. Slugs rather
+    // than ids, so the query string stays readable and survives a reseed.
+    if (ingredients.length > 0) {
+      // Every named ingredient must be present, not just one of them.
+      whereClause.AND = ingredients.map((slug) => ({
+        ingredientLinks: { some: { ingredient: { slug } } }
+      }));
+    }
+
+    if (excludeIngredients.length > 0) {
+      whereClause.ingredientLinks = {
+        none: { ingredient: { slug: { in: excludeIngredients } } }
+      };
+    }
+
     if (search.length > 0) {
       whereClause.OR = [
         { name: { contains: search[0], mode: 'insensitive' } },
